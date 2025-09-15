@@ -126,7 +126,7 @@ export default function ChatBox({ receiver, onBack }) {
           );
         })}
         {isTyping && (
-          <p className="italic text-sm text-gray-500 mt-2">✍️ typing…</p>
+          <p className="italic text-sm text-gray-500 mt-2 animate-pulse">✍️ typing…</p>
         )}
         <div ref={messagesEndRef}></div>
       </div>

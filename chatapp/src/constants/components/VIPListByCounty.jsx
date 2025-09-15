@@ -17,7 +17,7 @@ const VIPListByCounty = ({ vipAccountsByCounty }) => {
     <>
       {vipAccountsByCounty.map((countyData) => (
         <section key={countyData._id} className="max-w-6xl mx-auto px-4 py-8">
-          <h2 className="text-2xl font-bold mt-8 mb-4 text-pink text-center">
+          <h2 className="text-2xl font-bold mt-8 mb-4 text-pink-500 text-center">
             VIP Accounts in {countyData._id}
           </h2>
 
@@ -32,7 +32,7 @@ const VIPListByCounty = ({ vipAccountsByCounty }) => {
                 return (
                   <div
                     key={vip._id}
-                    className="border rounded-lg shadow-lg p-6 bg-white transition-all duration-300 hover:border-pink hover:shadow-xl hover:scale-105"
+                    className="border rounded-lg shadow-lg p-6 bg-white transition-all duration-300 hover:border-pink-500 hover:shadow-xl hover:scale-105"
                   >
                     <Link
                       to={`/profile/${vip._id}`}

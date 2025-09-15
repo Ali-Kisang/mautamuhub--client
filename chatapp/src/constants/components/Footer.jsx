@@ -2,64 +2,74 @@ import { FaXTwitter } from "react-icons/fa6";
 import { FaTelegram, FaFacebookF } from "react-icons/fa";
 import qr from "../../assets/mautamu-telegram-qr.jpeg";
 
-export default function Component() {
+export default function Footer() {
   return (
-    <footer className="footer footer-horizontal footer-center bg-base-200 text-base-content rounded p-10">
-      <nav className="grid grid-flow-col gap-4">
-        <a href="/terms-and-conditions" className="link link-hover">
-          Terms and Conditions
-        </a>
-        <a href="/privacy-policy" className="link link-hover">
-          Privacy Policy
-        </a>
-        <a href="/refund-policy" className="link link-hover">
-          Refund Policy
-        </a>
-        <a href="/payment-methods" className="link link-hover">
-          Payment Methods
-        </a>
-      </nav>
+    <footer className="w-full bg-gray-100 text-gray-700 py-10 px-6 mt-10 relative">
+      {/* Gradient Top Border */}
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-pink-500 via-pink-300 to-transparent"></div>
 
-      <nav className="flex flex-col items-center gap-4">
-        <div className="grid grid-flow-col gap-4 text-xl">
-          <a
-            href="https://x.com/mautamuhub"
-            aria-label="X (Twitter)"
-            className="text-black hover:bg-pink rounded-full p-2 transition"
-          >
-            <FaXTwitter />
+      <div className="max-w-6xl mx-auto grid gap-10 md:grid-cols-3 text-center md:text-left relative">
+        
+        {/* Links Section */}
+        <nav className="flex flex-col gap-2 text-sm font-medium">
+          <a href="/terms-and-conditions" className="hover:text-pink-600 transition">
+            Terms and Conditions
           </a>
-          <a
-            href="https://t.me/mautamuhub_kenya"
-            aria-label="Telegram"
-            className="text-[#0088cc] hover:bg-pink rounded-full p-2 transition"
-          >
-            <FaTelegram />
+          <a href="/privacy-policy"  className="hover:text-pink-600 transition">
+            Privacy Policy
           </a>
-          <a
-            href="https://www.facebook.com/groups/1236627844509614"
-            aria-label="Facebook"
-            className="text-[#1877f2] hover:bg-pink rounded-full p-2 transition"
-          >
-            <FaFacebookF />
+          <a href="/refund-policy" className="hover:text-pink-600 transition">
+            Refund Policy
           </a>
+          <a href="/payment-methods" className="hover:text-pink-600 transition">
+            Payment Methods
+          </a>
+        </nav>
+
+        {/* Socials + QR */}
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex gap-4 text-xl">
+            <a
+              href="https://x.com/mautamuhub"
+              aria-label="X (Twitter)"
+              className="p-2 rounded-full bg-white shadow hover:bg-pink-100 transition"
+            >
+              <FaXTwitter className="text-black" />
+            </a>
+            <a
+              href="https://t.me/mautamuhub_kenya"
+              aria-label="Telegram"
+              className="p-2 rounded-full bg-white shadow hover:bg-pink-100 transition"
+            >
+              <FaTelegram className="text-[#0088cc]" />
+            </a>
+            <a
+              href="https://www.facebook.com/groups/1236627844509614"
+              aria-label="Facebook"
+              className="p-2 rounded-full bg-white shadow hover:bg-pink-100 transition"
+            >
+              <FaFacebookF className="text-[#1877f2]" />
+            </a>
+          </div>
+
+          <img
+            src={qr}
+            alt="Telegram QR Code"
+            className="w-48 h-48 md:w-56 md:h-56 object-contain rounded-lg shadow"
+          />
+          <p className="mt-2 text-sm font-semibold text-gray-800">
+            Scan to join our Telegram Channel
+          </p>
         </div>
 
-        <img
-  src={qr}
-  alt="Telegram QR Code"
-  className="w-80 h-80 object-contain rounded "
-/>
-<p className="mt-2 font-medium text-base">SCAN TO JOIN OUR TELEGRAM CHANNEL</p>
-
-      </nav>
-
-      <aside>
-        <p>
-          Copyright © {new Date().getFullYear()} - All rights reserved by
-          <span className="text-pink"> Mautamuhub</span>
-        </p>
-      </aside>
+        {/* Copyright */}
+        <aside className="flex items-center justify-center md:justify-end">
+          <p className="text-sm">
+            © {new Date().getFullYear()}{" "}
+            <span className="text-pink-600 font-semibold">Mautamuhub</span> — All rights reserved
+          </p>
+        </aside>
+      </div>
     </footer>
   );
 }

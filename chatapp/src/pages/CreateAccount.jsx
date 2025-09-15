@@ -41,7 +41,7 @@ export default function CreateAccount() {
           >
             I have read and agree to the{" "}
             <a
-              href="/terms"
+              href="/terms-and-conditions"
               className="text-pink-600 hover:underline font-medium"
             >
               Terms and Conditions

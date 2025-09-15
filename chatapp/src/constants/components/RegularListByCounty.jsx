@@ -31,7 +31,7 @@ const RegularListByCounty = ({ regularAccountsByCounty = [] }) => {
 
         return (
           <section key={countyId} className="max-w-6xl mx-auto px-4 py-8">
-            <h2 className="text-2xl font-bold mt-8 mb-4 text-pink text-center">
+            <h2 className="text-2xl font-bold mt-8 mb-4 text-pink-500 text-center">
               Meet Escorts from {countyId}
             </h2>
 
@@ -94,7 +94,7 @@ const RegularListByCounty = ({ regularAccountsByCounty = [] }) => {
                       {regular?.personal?.phone && (
                         <a
                           href={`tel:${regular.personal.phone}`}
-                          className="mt-4 inline-block w-full text-center bg-pink text-white py-2 rounded hover:bg-pink/90 transition"
+                          className="mt-4 inline-block w-full text-center bg-pink-500 text-white py-2 rounded hover:bg-pink/90 transition"
                         >
                           Call Now {regular.personal.phone}
                         </a>

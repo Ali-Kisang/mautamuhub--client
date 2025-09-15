@@ -59,40 +59,70 @@ const HomeLayout = ({ children }) => {
 
   return (
     <>
-      <div className="container mx-auto p-4 space-y-4 bg-gradient-to-br from-coralPink via-rose-100 to-pink ">
-        {/* Locations (top horizontal scroll) */}
-        <div className="w-full overflow-x-auto  bg-gradient-to-br from-coralPink via-rose-100 to-pink">
-          <div className="flex gap-2 pb-2 min-w-max">
-            {countyMenu.map((county) => {
-              const isActive = location.pathname === county.path;
-              return (
+  {/* Locations (grid display) */}
+  <div className="w-full bg-gradient-to-br from-rose-100 via-pink-300 to-pink-400 p-4 rounded-lg shadow">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      {countyMenu.map((county) => {
+        const isActive = location.pathname === county.path;
+
+        return (
+          <motion.div
+            key={county.countyCode}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="w-full"
+          >
+            {isActive ? (
+              <motion.div
+                animate={{
+                  scale: [1, 1.08, 1],
+                  boxShadow: [
+                    "0 0 0px rgba(236,72,153,0.0)",
+                    "0 0 20px rgba(236,72,153,0.6)",
+                    "0 0 0px rgba(236,72,153,0.0)",
+                  ],
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+                className="rounded-lg"
+              >
                 <Link
-                  key={county.countyCode}
                   to={county.path}
-                  className={`btn btn-sm whitespace-nowrap ${
-                    isActive ? "btn-primary" : "btn-outline"
-                  }`}
+                  className="block w-full text-center px-4 py-2 rounded-lg bg-pink-500 text-white font-medium shadow hover:bg-pink-600 transition"
                 >
                   {county.name}
                 </Link>
-              );
-            })}
-          </div>
-        </div>
+              </motion.div>
+            ) : (
+              <Link
+                to={county.path}
+                className="block w-full text-center px-4 py-2 rounded-lg border border-pink-400 text-pink-600 font-medium hover:bg-pink-50 transition"
+              >
+                {county.name}
+              </Link>
+            )}
+          </motion.div>
+        );
+      })}
+    </div>
+  </div>
 
-        {/* Main Content */}
-        <motion.main
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4 }}
-          className="bg-white p-4 rounded-box shadow"
-        >
-          {children}
-        </motion.main>
-      </div>
+  {/* Main Content */}
+  <motion.main
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.5 }}
+    className="bg-white p-4 rounded-lg shadow"
+  >
+    {children}
+  </motion.main>
 
-      <Footer />
-    </>
+  <Footer />
+</>
+
   );
 };
 

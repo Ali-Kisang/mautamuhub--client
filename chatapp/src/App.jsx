@@ -63,6 +63,10 @@ import SearchPage from "./pages/SearchPage";
 import ErrorPage from "./pages/ErrorPage";
 import AgeWarningBanner from "./constants/components/AgeWarningBanner";
 import TooYoung from "./constants/components/TooYoung";
+import TermsAndConditions from "./constants/components/TermsAndConditions";
+import PrivacyPolicy from "./constants/components/PrivacyPolicy";
+import RefundPolicy from "./constants/components/RefundPolicy";
+import PaymentMethods from "./constants/components/PaymentMethods";
 
 //import Nairobi from "./constants/components/Nairobi";
 function PrivateRoute({ children }) {
@@ -75,9 +79,9 @@ export default function App() {
   
   return (
     <BrowserRouter>
-      {/* ✅ Age Warning Banner */}
+     
       <AgeWarningBanner />
-      {/* ✅ NavBar visible on all pages */}
+      
       <NavBar />  
 <SocketManager />
       <Routes>
@@ -90,7 +94,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         {/*<Route path="/profile" element={<ProfileSetup />} /> }*/}
         <Route path="/profile" element={<ProfilePage />} />
-        {/* ✅ Chat page with dynamic user ID */}
+        
          <Route path="*" element={<ErrorPage />} />
         <Route path="/chat/:id" element={<Chat />} />
           <Route path="/profile/:id" element={<ProfileDetailsPage />} />
@@ -143,6 +147,10 @@ export default function App() {
         <Route path="/kisii-escorts" element={<Kisii />} />
         <Route path="/nyamira-escorts" element={<Nyamira />} />
         <Route path="/nairobi-escorts" element={<Nairobi />} /> 
+        <Route path= "/terms-and-conditions" element={<TermsAndConditions />} />
+        <Route path="privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/refund-policy" element={<RefundPolicy/>} />
+        <Route path="/payment-methods" element={<PaymentMethods />} />
         
       </Routes>
     </BrowserRouter>

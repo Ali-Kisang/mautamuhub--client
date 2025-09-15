@@ -37,7 +37,7 @@ const VVIPList = ({ vvipAccounts }) => {
           return (
             <div
               key={vvip?._id}
-              className="border rounded-lg shadow-lg p-6 bg-white transition-all duration-300 hover:border-pink hover:shadow-xl hover:scale-105"
+              className="border rounded-lg shadow-lg p-6 bg-white transition-all duration-300 hover:border-pink-500 hover:shadow-xl hover:scale-105"
             >
               <Link
                 to={`/profile/${vvip?._id}`}
@@ -69,7 +69,7 @@ const VVIPList = ({ vvipAccounts }) => {
 
                 <h3 className="mt-4 text-lg font-semibold text-gray-800 flex items-center justify-center">
                   Meet {vvip?.personal?.username}
-                  <MdVerified className="text-pink ml-1 text-xl" />
+                  <MdVerified className="text-pink-500 ml-1 text-xl" />
                 </h3>
                 <p className="text-gray-600">
                   {vvip?.personal?.gender} | {vvip?.personal?.orientation} | {vvip?.personal?.age}
@@ -83,7 +83,7 @@ const VVIPList = ({ vvipAccounts }) => {
               {vvip?.personal?.phone && (
                 <a
                   href={`tel:${vvip.personal.phone}`}
-                  className="mt-4 inline-block w-full text-center bg-pink text-white py-2 rounded hover:bg-pink/90 transition"
+                  className="mt-4 inline-block w-full text-center bg-pink-500 text-white py-2 rounded hover:bg-pink-300 transition"
                 >
                   Call Now {vvip.personal.phone}
                 </a>

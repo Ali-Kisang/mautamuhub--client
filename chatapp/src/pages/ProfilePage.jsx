@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import api from "../utils/axiosInstance";
 import { useAuthStore } from "../store/useAuthStore";
-
 import { useNavigate } from "react-router-dom";
 import OnlineUsersList from "./OnlineUsersList";
+
+// 👉 Lucide Icons
+import { User, MapPin, Phone, Heart, DollarSign, Camera } from "lucide-react";
 
 export default function ProfilePage() {
   const { user } = useAuthStore();
@@ -34,7 +36,6 @@ export default function ProfilePage() {
   }, [user?._id]);
 
   const handleSelectUser = (selectedUser) => {
-    // Navigate to chat page for that user
     navigate(`/chat/${selectedUser.userId}`);
   };
 
@@ -51,71 +52,130 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen bg-gray-50">
       {/* 👉 Left Sidebar: Online Users */}
       <aside className="w-72 border-r bg-white hidden md:block">
         <OnlineUsersList onSelectUser={handleSelectUser} />
       </aside>
 
-      {/* 👉 Main Content: Profile Details */}
-      <main className="flex-1 overflow-y-auto p-4 bg-gray-50">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold mb-6">My Profile</h1>
-          <div className="bg-white shadow-md rounded-xl p-6 space-y-4">
-            {/* Personal */}
-            <h2 className="text-xl font-semibold">👤 Personal Info</h2>
-            <p><strong>Username:</strong> {profile.personal?.username}</p>
-            <p><strong>Phone:</strong> {profile.personal?.phone}</p>
-            <p><strong>Gender:</strong> {profile.personal?.gender}</p>
-            <p><strong>Age:</strong> {profile.personal?.age}</p>
-            <p><strong>Ethnicity:</strong> {profile.personal?.ethnicity}</p>
-            <p><strong>Orientation:</strong> {profile.personal?.orientation}</p>
-
-            {/* Location */}
-            <h2 className="text-xl font-semibold mt-6">📍 Location</h2>
-            <p>
-              {profile.location?.localArea}, {profile.location?.ward},{" "}
-              {profile.location?.constituency}, {profile.location?.county}
+      {/* 👉 Main Content */}
+      <main className="flex-1 overflow-y-auto">
+        {/* Banner / Header */}
+        <div className="bg-gradient-to-r from-pink-200 to-pink-500 h-48 relative">
+          <div className="absolute -bottom-20 left-1/2 transform -translate-x-1/2 flex flex-col items-center">
+            <img
+              src={`https://res.cloudinary.com/dcxggvejn/image/upload/${
+                profile.photos?.[0] || "default.jpg"
+              }`}
+              alt="Profile"
+              className="w-36 h-36 rounded-full border-4 border-pink-500   shadow-lg object-contain hover:scale-105 transition-transform"
+            />
+            <h1 className="mt-6 text-2xl font-bold text-gray-800">
+              {profile.personal?.username}
+            </h1>
+            <p className="mt-1 text-gray-600">
+              {profile.personal?.age} yrs · {profile.personal?.gender}
             </p>
-
-            {/* Rates */}
-            <h2 className="text-xl font-semibold mt-6">💲 Rates</h2>
-            <p>Incall: Ksh {profile.additional?.incallRate}</p>
-            <p>Outcall: Ksh {profile.additional?.outcallRate}</p>
-
-            {/* Description */}
-            <h2 className="text-xl font-semibold mt-6">📝 Description</h2>
-            <p className="text-gray-700">{profile.additional?.description}</p>
-
-            {/* Services */}
-            {profile.services?.selected?.length > 0 && (
-              <>
-                <h2 className="text-xl font-semibold mt-6">✅ Services</h2>
-                <ul className="list-disc ml-6 space-y-1">
-                  {profile.services.selected.map((service, i) => (
-                    <li key={i}>{service}</li>
-                  ))}
-                </ul>
-              </>
-            )}
-
-            {/* Photos */}
-            {profile.photos && profile.photos.length > 0 && (
-              <>
-                <h2 className="text-xl font-semibold mt-6">📸 Photos</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {profile.photos.map((publicId, i) => (
-                    <img
-                      key={i}
-                      src={`https://res.cloudinary.com/dcxggvejn/image/upload/${publicId}`}
-                      alt={`photo-${i}`}
-                      className="w-full h-40 object-cover rounded-lg shadow"
-                    />
-                  ))}
-                </div>
-              </>
-            )}
+            <p className="text-gray-500 flex items-center gap-1">
+              <MapPin size={16} /> {profile.location?.county},{" "}
+              {profile.location?.constituency}
+            </p>
           </div>
+        </div>
+
+        {/* Content Cards */}
+        <div className="max-w-4xl mx-auto mt-28 space-y-6 p-4">
+          {/* Personal Info */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <User className="text-pink-500" size={25} /> Personal Info
+            </h2>
+            <div className="grid grid-cols-2 gap-4 text-gray-700">
+              <p>
+                <span className="font-medium flex items-center gap-1">
+                  <Phone size={16} /> Phone:
+                </span>{" "}
+                {profile.personal?.phone}
+              </p>
+              <p>
+                <span className="font-medium">Ethnicity:</span>{" "}
+                {profile.personal?.ethnicity}
+              </p>
+              <p>
+                <span className="font-medium">Orientation:</span>{" "}
+                {profile.personal?.orientation}
+              </p>
+            </div>
+          </div>
+
+          {/* Rates */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <DollarSign className="text-pink-500" size={25} /> Rates
+            </h2>
+            <div className="flex flex-wrap gap-3">
+              <span className="bg-pink-100 text-pink-500 px-4 py-2 rounded-lg font-medium">
+                Incall: Ksh {profile.additional?.incallRate}
+              </span>
+              <span className="bg-pink-100 text-pink-500 px-4 py-2 rounded-lg font-medium">
+                Outcall: Ksh {profile.additional?.outcallRate}
+              </span>
+            </div>
+          </div>
+
+          {/* Services */}
+          {profile.services?.selected?.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <Heart size={25} className="text-pink-500" /> Services
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {profile.services.selected.map((service, i) => (
+                  <span
+                    key={i}
+                    className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm"
+                  >
+                    {service}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Description */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <User size={25} className="text-pink-500" /> About Me
+            </h2>
+            <p className="text-gray-700 leading-relaxed">
+              {profile.additional?.description}
+            </p>
+          </div>
+
+   {/* Photos */}
+{profile.photos && profile.photos.length > 0 && (
+  <div className="bg-white rounded-xl shadow-sm p-6">
+    <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+      <Camera size={25} className="text-pink-500" /> Photos
+    </h2>
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+      {profile.photos.map((publicId, i) => (
+        <div
+          key={i}
+          className="w-full h-64 bg-gray-100 rounded-lg shadow flex items-center justify-center overflow-hidden"
+        >
+          <img
+            src={`https://res.cloudinary.com/dcxggvejn/image/upload/${publicId}`}
+            alt={`photo-${i}`}
+            className="w-full h-full object-contain"
+          />
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+
+
         </div>
       </main>
     </div>

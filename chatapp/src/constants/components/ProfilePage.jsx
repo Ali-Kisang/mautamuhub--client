@@ -131,7 +131,7 @@ const ProfilePage = () => {
         <div className="flex justify-center">
   <div className="relative w-24 h-24">
     <div className="avatar">
-      <div className="w-24 rounded-full ring ring-pink ring-offset-100 ring-offset-2">
+      <div className="w-24 rounded-full ring ring-pink-500 ring-offset-2">
 <img
         src={
   selectedPhotos.length > 0

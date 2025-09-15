@@ -4,9 +4,9 @@ import api from "../utils/axiosInstance";
 import { useAuthStore } from "../store/useAuthStore";
 import { socket } from "../utils/socket";
 import moment from "moment";
-import { Send } from "lucide-react";
+import { Check, CheckCheck, Send, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
-
+import { MessageCircle } from "lucide-react";
 export default function Chat() {
   const { id: receiverId } = useParams();
   const { user } = useAuthStore();
@@ -35,18 +35,20 @@ export default function Chat() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // ✅ fetch receiver name
-  useEffect(() => {
-    const fetchReceiverName = async () => {
-      try {
-        const res = await api.get(`/users/profile/${receiverId}`);
-        setReceiverName(res.data.personal?.username || "User");
-      } catch (err) {
-        console.error("Error fetching receiver name:", err);
-      }
-    };
-    if (receiverId) fetchReceiverName();
-  }, [receiverId]);
+  // Chat.jsx
+useEffect(() => {
+  const fetchReceiverName = async () => {
+    try {
+      const res = await api.get(`/users/profile/${receiverId}`);
+      // ✅ Corrected path
+      setReceiverName(res.data.user.username || "User");
+    } catch (err) {
+      console.error("Error fetching receiver name:", err);
+    }
+  };
+  if (receiverId) fetchReceiverName();
+}, [receiverId]);
+
 
   // ✅ play sound
   const playNotificationSound = () => {
@@ -83,7 +85,7 @@ export default function Chat() {
         if (msg.senderId === receiverId) {
           playNotificationSound();
           toast.success(`${receiverName}: ${msg.message}`, {
-            icon: "💌",
+            icon: <MessageCircle size={22} />,
             duration: 4000,
             style: {
               background: "#fff",
@@ -236,7 +238,7 @@ export default function Chat() {
             >
               {m.deleted ? (
                 <p className="italic flex items-center space-x-1">
-                  <span>🗑️</span>
+                  <Trash2  className="text-gray-800"/>
                   <span>This message was deleted</span>
                 </p>
               ) : (
@@ -257,11 +259,9 @@ export default function Chat() {
                   <>
                     {m.status === "sent" && <span title="Sent">✔</span>}
                     {m.status === "delivered" && (
-                      <span className="text-green-500" title="Delivered">
-                        ✔✔
-                      </span>
+                       <Check className="w-4 h-4 text-gray-800" aria-label="Delivered" />
                     )}
-                    {m.status === "seen" && <span title="Seen">👁️👁️</span>}
+                    {m.status === "seen" && <span title="Seen"><CheckCheck className="w-4 h-4 text-gray-800" aria-label="Seen" /></span>}
                   </>
                 )}
               </p>
@@ -286,12 +286,16 @@ export default function Chat() {
           );
         })}
 
-        {/* Typing indicator */}
-        {typingUser && (
-          <p className="italic text-sm text-gray-500 mt-2">
-            ✍️ <span className="font-medium">{typingUser}</span> is typing...
-          </p>
-        )}
+       {typingUser && (
+  <div className="flex items-center gap-2 mt-2">
+    <span className="text-gray-500 font-medium">{typingUser}</span>
+    <div className="flex gap-1">
+      <span className="w-2 h-2 bg-pink-500 rounded-full animate-bounce"></span>
+      <span className="w-2 h-2 bg-pink-500 rounded-full animate-bounce [animation-delay:-0.2s]"></span>
+      <span className="w-2 h-2 bg-pink-500 rounded-full animate-bounce [animation-delay:-0.4s]"></span>
+    </div>
+  </div>
+)}
         <div ref={messagesEndRef}></div>
       </div>
 

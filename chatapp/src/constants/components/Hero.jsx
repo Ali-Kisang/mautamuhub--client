@@ -7,6 +7,7 @@ import VIPListByCounty from "./VIPListByCounty";
 import RegularListByCounty from "./RegularListByCounty";
 import HomeLayout from "./HomeLayout";
 import Header from "./Header";
+
 const Hero = () => {
   const server = "http://localhost:5000/api";
   const [users, setUsers] = useState({
@@ -16,14 +17,18 @@ const Hero = () => {
     regularAccountsByCounty: [],
   });
   const [selectedCounty, setSelectedCounty] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchUsers = async () => {
       try {
+        setLoading(true);
         const response = await axios.get(`${server}/counties/grouped`);
         setUsers(response.data);
       } catch (error) {
         console.error("Error fetching users", error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchUsers();
@@ -35,41 +40,72 @@ const Hero = () => {
   const filteredVIPAccountsByCounty = users.vipAccountsByCounty.filter(
     (account) => account.county === selectedCounty
   );
-  const filteredRegularAccountsByCounty = users.regularAccountsByCounty.filter(
-    (account) => account.county === selectedCounty
-  );
+  const filteredRegularAccountsByCounty =
+    users.regularAccountsByCounty.filter(
+      (account) => account.county === selectedCounty
+    );
 
   return (
     <>
       <Header />
       <HomeLayout onCountySelect={setSelectedCounty}>
-        {selectedCounty ? (
-          <div>
-            {/* Display VIP and Regular accounts for selected county */}
-            {filteredVIPAccountsByCounty.length > 0 ? (
-              <VIPListByCounty
-                vipAccountsByCounty={filteredVIPAccountsByCounty}
-              />
-            ) : (
-              <p className="text-gray-500">
-                No VIP accounts available for this county.
-              </p>
-            )}
-            {filteredRegularAccountsByCounty.length > 0 ? (
-              <RegularListByCounty
-                regularAccountsByCounty={filteredRegularAccountsByCounty}
-              />
-            ) : (
-              <p className="text-gray-500">
-                No regular accounts available for this county.
-              </p>
-            )}
+        {loading ? (
+          // 🔄 Loading State
+          <div className="flex flex-col items-center justify-center py-20">
+            <span className="loading loading-spinner loading-lg text-pink-500"></span>
+            <p className="mt-4 text-gray-600">Loading accounts...</p>
+          </div>
+        ) : selectedCounty ? (
+          // ✅ Show County-specific VIP + Regular
+          <div className="space-y-10">
+            {/* VIP Accounts */}
+            <section>
+              <h2 className="text-2xl font-semibold text-pink-500 mb-4">
+                VIP Accounts in {selectedCounty}
+              </h2>
+              {filteredVIPAccountsByCounty.length > 0 ? (
+                <VIPListByCounty vipAccountsByCounty={filteredVIPAccountsByCounty} />
+              ) : (
+                <p className="text-gray-500 italic">
+                  No VIP accounts available in this county.
+                </p>
+              )}
+            </section>
+
+            {/* Regular Accounts */}
+            <section>
+              <h2 className="text-2xl font-semibold text-pink-500 mb-4">
+                Regular Accounts in {selectedCounty}
+              </h2>
+              {filteredRegularAccountsByCounty.length > 0 ? (
+                <RegularListByCounty
+                  regularAccountsByCounty={filteredRegularAccountsByCounty}
+                />
+              ) : (
+                <p className="text-gray-500 italic">
+                  No regular accounts available in this county.
+                </p>
+              )}
+            </section>
           </div>
         ) : (
-          <div>
-            {/* Always display Spas and VVIP accounts */}
-            <SpasList spas={filteredSpas} />
-            <VVIPList vvipAccounts={filteredVVIPAccounts} />
+          // ✅ Show Default (Spas + VVIP)
+          <div className="space-y-10">
+            {/* Spas */}
+            <section>
+              <h2 className="text-2xl font-semibold text-pink-500 mb-4">
+                Featured Spas
+              </h2>
+              <SpasList spas={filteredSpas} />
+            </section>
+
+            {/* VVIP Accounts */}
+            <section>
+              <h2 className="text-2xl font-semibold text-pink-500 mb-4">
+                Exclusive VVIP Accounts
+              </h2>
+              <VVIPList vvipAccounts={filteredVVIPAccounts} />
+            </section>
           </div>
         )}
       </HomeLayout>

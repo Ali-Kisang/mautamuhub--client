@@ -4,99 +4,110 @@ import {
   FaSyncAlt,
   FaClock,
   FaMobileAlt,
+  FaRegClock,
 } from "react-icons/fa";
 import Footer from "./Footer";
+
 export default function PaymentMethods() {
   return (
     <>
-      <div className=" mx-auto p-6 space-y-6 text-base-content">
+      <div className="max-w-4xl mx-auto p-6 space-y-6 text-base-content">
+        {/* Page Header */}
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-pink">
+          <h1 className="text-4xl font-bold text-pink-600">
             Payment Methods & Subscriptions
           </h1>
           <p className="text-gray-600 mt-2">
-            Simple, secure, and flexible payment options tailored for your
-            experience on Mautamuhub.
+            We currently support <strong>Mpesa STK Push only</strong>. Other
+            payment methods may be added in the future to give you more
+            flexibility.
           </p>
         </div>
 
         {/* Payment Security */}
-        <div className="card bg-pink-100 shadow-md p-6 border-l-4 border-pink">
+        <div className="card bg-pink-50-100 shadow-md p-6 border-l-4 border-pink-500">
           <div className="flex items-center gap-3 text-pink text-2xl font-semibold mb-2">
-            <FaLock />
-            <span>Secure Payments</span>
+            <FaLock className="text-pink-600" />
+            <span className="text-pink-600">Secure Transactions</span>
           </div>
           <p>
-            All transactions are protected using industry-standard encryption
-            and security protocols. Your card details and mobile payment data
-            are never stored on our servers.
+            All transactions through Mpesa STK Push are secure and verified.
+            Your details are never stored on our servers, ensuring safety and
+            peace of mind.
           </p>
         </div>
 
         {/* Supported Payment Methods */}
-        <div className="card bg-pink-100 shadow-md p-6 border-l-4 border-pink">
+        <div className="card bg-pink-50-100 shadow-md p-6 border-l-4 border-pink-500">
           <div className="flex items-center gap-3 text-pink text-2xl font-semibold mb-2">
-            <FaMobileAlt />
-            <span>Available Payment Options</span>
+            <FaMobileAlt className="text-pink-600" />
+            <span className="text-pink-600">Currently Supported Method</span>
           </div>
           <p>
-            We support <strong>Mpesa</strong>, <strong>Visa</strong>,{" "}
-            <strong>MasterCard</strong>, and other major card processors. You
-            can choose what works best for you—whether it’s mobile money or card
-            payments.
+            At the moment, we only accept{" "}
+            <strong>Mpesa STK Push payments</strong>. When you initiate a
+            payment, a prompt will appear on your registered Mpesa number for
+            confirmation.
+          </p>
+          <p className="mt-2 text-sm text-gray-700">
+            <em>
+              In the future, we may include other payment options like cards
+              (Visa/MasterCard) or additional mobile money services.
+            </em>
           </p>
         </div>
 
         {/* Subscription Model */}
-        <div className="card bg-pink-100 shadow-md p-6 border-l-4 border-pink">
+        <div className="card bg-pink-50-100 shadow-md p-6 border-l-4 border-pink-500">
           <div className="flex items-center gap-3 text-pink text-2xl font-semibold mb-2">
-            <FaClock />
-            <span>Flexible Subscription Options</span>
+            <FaClock className="text-pink-600" />
+            <span className="text-pink-600">Flexible Subscription Plans</span>
           </div>
           <p>
-            We offer affordable and flexible subscription plans to suit your
-            needs:
+            Choose from our affordable subscription options:
             <ul className="list-disc list-inside mt-2">
-              <li>3 Days</li>
-              <li>1 Week</li>
-              <li>2 Weeks</li>
-              <li>1 Month</li>
+              <li>3 Days Access</li>
+              <li>1 Week Access</li>
+              <li>2 Weeks Access</li>
+              <li>1 Month Access</li>
             </ul>
-            Access full features and premium services based on your chosen plan.
+            Each plan unlocks full features and premium visibility.
           </p>
         </div>
 
         {/* Auto-Renewal Policy */}
-        <div className="card bg-pink-100 shadow-md p-6 border-l-4 border-pink">
+        <div className="card bg-pink-50-100 shadow-md p-6 border-l-4 border-pink-500">
           <div className="flex items-center gap-3 text-pink text-2xl font-semibold mb-2">
-            <FaSyncAlt />
-            <span>Auto-Renewal & Cancellation</span>
+            <FaSyncAlt  className="text-pink-600"/>
+            <span className="text-pink-600">Auto-Renewal</span>
           </div>
           <p>
-            Subscriptions are set to <strong>auto-renew</strong> by default to
-            avoid service interruptions. You will be charged automatically at
-            the end of each billing cycle. You may cancel at any time from your
-            account settings to stop the next renewal.
+            Subscriptions are set to renew automatically to prevent
+            interruptions. You may cancel auto-renewal anytime through your
+            account settings.
           </p>
         </div>
 
         {/* Easy Process */}
-        <div className="card bg-pink-100 shadow-md p-6 border-l-4 border-pink">
+        <div className="card bg-pink-50-100 shadow-md p-6 border-l-4 border-pink-500">
           <div className="flex items-center gap-3 text-pink text-2xl font-semibold mb-2">
-            <FaMoneyCheckAlt />
-            <span>Simple & Convenient</span>
+            <FaMoneyCheckAlt className="text-pink-600" />
+            <span className="text-pink-600">Simple Checkout</span>
           </div>
           <p>
-            Our checkout process is easy to navigate, and subscription
-            activation is instant. Enjoy uninterrupted service with a few taps.
+            Payments via Mpesa STK Push are fast and straightforward. Once
+            confirmed, your subscription activates instantly—no delays.
           </p>
         </div>
 
         {/* Summary */}
-        <div className="p-6 bg-pink text-white text-center rounded-lg shadow-md">
-          <p className="text-lg font-semibold">
-            Mautamuhub gives you full control—pay securely, choose your plan,
-            and manage renewals anytime.
+        <div className="p-6 bg-pink-300 text-white text-center rounded-lg shadow-md">
+          <p className="text-lg font-semibold underline text-pink-700">
+            For now, Mautamuhub accepts only Mpesa STK Push payments.
+          </p>
+          <p className="text-sm mt-2">
+            Stay tuned—more payment options will be introduced soon to enhance
+            flexibility and convenience.
           </p>
         </div>
       </div>

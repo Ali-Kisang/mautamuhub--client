@@ -69,7 +69,7 @@ const HomeLayout = ({ children }) => {
                 <Link
                   key={county.countyCode}
                   to={county.path}
-                  className={`btn btn-sm whitespace-nowrap ${
+                  className={`btn btn-sm whitespace-nowrap  ${
                     isActive ? "btn-primary" : "btn-outline"
                   }`}
                 >
