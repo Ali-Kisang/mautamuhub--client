@@ -207,16 +207,16 @@ useEffect(() => {
 
   return (
     <>
-      <nav className="bg-white shadow-md sticky top-0 left-0 w-full z-50">
+      <nav className="bg-white shadow-md sticky top-0 left-0 w-full  z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center h-18 ">
             {/* Logo */}
             <div className="flex items-center gap-4">
   <Link to="/">
     <img
       src={mautamuLogo}
       alt="Mautamuhub Logo"
-      className="h-36 sm:h-40 md:h-48 lg:h-64 w-auto object-contain"
+      className="h-20 sm:h-40 md:h-48 lg:h-64 w-auto object-contain"
     />
   </Link>
 </div>
@@ -227,7 +227,7 @@ useEffect(() => {
                 Profile
               </Link>
 
-              <Link to="/chat" className="relative text-pink-600 hover:text-pink-700 transition-colors duration-200 flex items-center" title="Messenger">
+              <Link to="/profile" className="relative text-pink-600 hover:text-pink-700 transition-colors duration-200 flex items-center" title="Messenger">
                 <MessageCircle size={28} strokeWidth={2.5} />
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-2 bg-pink-700 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-md animate-pulse">

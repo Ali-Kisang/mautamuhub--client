@@ -10,6 +10,7 @@ import { MessageCircle } from "lucide-react";
 export default function Chat() {
   const { id: receiverId } = useParams();
   const { user } = useAuthStore();
+const [editingMessage, setEditingMessage] = useState(null);
 
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
@@ -159,48 +160,86 @@ useEffect(() => {
 
   // ✅ send message
   const sendMessage = async () => {
-    if (!text.trim()) return;
-    try {
-      const res = await api.post("/chat", { receiverId, message: text });
-      socket.emit("sendMessage", res.data);
-      setMessages((prev) => [...prev, res.data]);
-      setText("");
-      socket.emit("stopTyping", { senderId: user._id, receiverId });
-    } catch (err) {
-      console.error("Send failed:", err);
-    }
-  };
+  if (!text.trim()) return;
 
-  // ✅ edit message
-  const handleEdit = async (m) => {
-    const newText = prompt("Edit message", m.message);
-    if (!newText || newText === m.message) return;
+  if (editingMessage) {
     try {
       const res = await api.put("/chat/edit", {
-        messageId: m._id,
-        newText,
+        messageId: editingMessage._id,
+        newText: text,
       });
       socket.emit("editMessage", res.data);
       setMessages((prev) =>
-        prev.map((msg) => (msg._id === m._id ? res.data : msg))
+        prev.map((msg) => (msg._id === editingMessage._id ? res.data : msg))
       );
+      setEditingMessage(null);
+      setText("");
     } catch (err) {
       console.error("Edit failed:", err);
     }
-  };
+    return;
+  }
+
+  try {
+    const res = await api.post("/chat", { receiverId, message: text });
+    socket.emit("sendMessage", res.data);
+    setMessages((prev) => [...prev, res.data]);
+    setText("");
+    socket.emit("stopTyping", { senderId: user._id, receiverId });
+  } catch (err) {
+    console.error("Send failed:", err);
+  }
+};
+
+
+  // ✅ edit message
+  const handleEdit = (m) => {
+  setEditingMessage(m);
+  setText(m.message);
+};
+
 
   // ✅ delete message
-  const handleDelete = async (id) => {
-    try {
-      await api.delete(`/chat/${id}`);
-      socket.emit("deleteMessage", id);
-      setMessages((prev) =>
-        prev.map((m) => (m._id === id ? { ...m, deleted: true } : m))
-      );
-    } catch (err) {
-      console.error("Delete failed:", err);
+ const handleDelete = (id) => {
+  toast(
+    (t) => (
+      <div className="flex flex-col space-y-3">
+        <span className="text-sm">Do you want to delete this message?</span>
+        <div className="flex space-x-3">
+          <button
+            className="px-3 py-1 text-sm bg-red-500 text-white rounded-md hover:bg-red-600 transition"
+            onClick={async () => {
+              try {
+                await api.delete(`/chat/${id}`);
+                socket.emit("deleteMessage", id);
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m._id === id ? { ...m, deleted: true } : m
+                  )
+                );
+                toast.dismiss(t.id);
+              } catch (err) {
+                console.error("Delete failed:", err);
+              }
+            }}
+          >
+            Delete
+          </button>
+          <button
+            className="px-3 py-1 text-sm bg-gray-200 rounded-md hover:bg-gray-300 transition"
+            onClick={() => toast.dismiss(t.id)}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    ),
+    {
+      duration: 4000,
+      position: "left-center",
     }
-  };
+  );
+};
 
   // ✅ typing
   const handleTyping = (e) => {
@@ -300,36 +339,51 @@ useEffect(() => {
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t bg-white">
-        <div className="flex items-center space-x-2">
-          <input
-            type="text"
-            value={text}
-            onChange={handleTyping}
-            placeholder="Type your message..."
-            className="
-              flex-1 rounded-2xl border border-gray-300 
-              px-4 py-3 text-sm 
-              focus:outline-none focus:ring-2 focus:ring-pink-400
-              transition duration-200
-            "
-          />
-          <button
-            onClick={sendMessage}
-            className="
-              flex items-center justify-center 
-              bg-pink-500 hover:bg-pink-600 
-              text-white rounded-full 
-              h-12 w-12 
-              transition duration-200
-              shadow-md hover:shadow-lg
-              focus:outline-none focus:ring-2 focus:ring-pink-300
-            "
-          >
-            <Send className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
+<div className="p-4 border-t bg-white">
+  {editingMessage && (
+    <div className="p-2 bg-yellow-100 text-sm text-gray-700 flex justify-between items-center rounded-t-md">
+      <span>Editing: {editingMessage.message}</span>
+      <button
+        onClick={() => {
+          setEditingMessage(null);
+          setText("");
+        }}
+        className="text-red-500 hover:underline text-xs"
+      >
+        Cancel
+      </button>
+    </div>
+  )}
+  <div className="flex items-center space-x-2">
+    <input
+      type="text"
+      value={text}
+      onChange={handleTyping}
+      placeholder={editingMessage ? "Edit your message..." : "Type your message..."}
+      className="
+        flex-1 rounded-2xl border border-gray-300 
+        px-4 py-3 text-sm 
+        focus:outline-none focus:ring-2 focus:ring-pink-400
+        transition duration-200
+      "
+    />
+    <button
+      onClick={sendMessage}
+      className="
+        flex items-center justify-center 
+        bg-pink-500 hover:bg-pink-600 
+        text-white rounded-full 
+        h-12 w-12 
+        transition duration-200
+        shadow-md hover:shadow-lg
+        focus:outline-none focus:ring-2 focus:ring-pink-300
+      "
+    >
+      <Send className="w-5 h-5" />
+    </button>
+  </div>
+</div>
+
     </div>
   );
 }

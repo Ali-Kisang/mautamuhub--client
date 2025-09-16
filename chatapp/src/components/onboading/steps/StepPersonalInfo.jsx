@@ -1,13 +1,12 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useState, useEffect } from "react";
+import { useAuthStore } from "../../../store/useAuthStore";
 
 // ✅ Validation function for use in OnBoarding and internal checks
 export const validatePersonalInfo = (data) => {
   const errors = {};
 
-  if (!data.username?.trim()) {
-    errors.username = "Username is required.";
-  }
+ 
 
   if (!data.phone?.trim()) {
     errors.phone = "Phone number is required.";
@@ -36,7 +35,7 @@ export const validatePersonalInfo = (data) => {
 export function StepPersonalInfo({ data, update, errors = {} }) {
   const [orientation, setOrientation] = useState(data.orientation || "");
   const [customOrientation, setCustomOrientation] = useState(data.customOrientation || "");
-
+ const { user } = useAuthStore();
   // Keep orientation state in sync with props
   useEffect(() => {
     setOrientation(data.orientation || "");
@@ -61,14 +60,24 @@ export function StepPersonalInfo({ data, update, errors = {} }) {
       <h2 className="text-xl font-semibold mb-2 text-pink-600">Personal Information</h2>
 
       {/* Username */}
-      <FormInput
+
+      <label className="flex flex-col">
+        <span className="text-gray-700 font-medium ">
+            Username <span className="text-red-500">*</span>
+        </span>
+            <input
         label="Username"
         required
-        value={data.username}
-        onChange={(e) => update({ username: e.target.value })}
+        value={user?.username || ""}   
+        onChange={() => {}}            
         error={errors.username}
         placeholder="Username"
+        readOnly
+        disabled
       />
+      </label>
+
+
 
       {/* Phone */}
       <FormInput
@@ -78,6 +87,7 @@ export function StepPersonalInfo({ data, update, errors = {} }) {
         onChange={(e) => update({ phone: e.target.value })}
         error={errors.phone}
         placeholder="Phone Number"
+        type="number"
       />
 
       {/* Gender */}
