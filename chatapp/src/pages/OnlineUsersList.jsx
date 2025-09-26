@@ -1,27 +1,30 @@
 import { useEffect, useState } from "react";
 import { useAuthStore } from "../store/useAuthStore";
+import { useChatStore } from "../store/useChatStore";
 import { socket } from "../utils/socket";
 import { useNavigate } from "react-router-dom";
+import api from "../utils/axiosInstance";
 import { Circle } from "lucide-react";
 
-export default function OnlineUsersList({ selectedUser, onUnreadUpdate }) {
+export default function OnlineUsersList({ selectedUser }) {
   const { user } = useAuthStore();
+  const { unreadCounts, incrementUnread, clearUnreadForUser } = useChatStore();
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [typingUsers, setTypingUsers] = useState({});
-  const [unreadCounts, setUnreadCounts] = useState({});
   const navigate = useNavigate();
-const getAvatarUrl = (avatar) => {
-  if (!avatar || avatar === "/default-avatar.png") {
-    return "/default-avatar.png";
-  }
 
-  // If it's already a full URL, don’t prepend Cloudinary again
-  if (avatar.startsWith("http")) {
-    return avatar;
-  }
+  const getAvatarUrl = (avatar) => {
+    if (!avatar || avatar === "/default-avatar.png") {
+      return "/default-avatar.png";
+    }
 
-  return `https://res.cloudinary.com/dcxggvejn/image/upload/${avatar}`;
-};
+    // If it's already a full URL, don’t prepend Cloudinary again
+    if (avatar.startsWith("http")) {
+      return avatar;
+    }
+
+    return `https://res.cloudinary.com/dcxggvejn/image/upload/${avatar}`;
+  };
 
   useEffect(() => {
     if (!user?._id) return;
@@ -38,58 +41,47 @@ const getAvatarUrl = (avatar) => {
       setOnlineUsers(users);
     });
 
-    // ✅ Listen for incoming messages
-    socket.on("newMessage", ({ senderId, receiverId }) => {
-      if (receiverId === user._id) {
-        setUnreadCounts((prev) => {
-          const updated = { ...prev, [senderId]: (prev[senderId] || 0) + 1 };
-          // Send total count up to NavBar
-          if (onUnreadUpdate) {
-            const total = Object.values(updated).reduce((a, b) => a + b, 0);
-            onUnreadUpdate(total);
-          }
-          return updated;
-        });
+    // ✅ Listen for incoming messages (aligned event)
+    socket.on("receiveMessage", (data) => {
+      if (data.receiverId.toString() === user._id.toString()) {
+        incrementUnread(data.senderId);
       }
     });
 
-    // ✅ Typing handling
-    socket.on("typing", ({ senderId, receiverId }) => {
-      if (receiverId === user._id) {
-        setTypingUsers((prev) => ({ ...prev, [senderId]: true }));
-      }
+    // ✅ Typing handling (single senderId arg, targeted emit)
+    socket.on("typing", (senderId) => {
+      setTypingUsers((prev) => ({ ...prev, [senderId]: true }));
     });
 
-    socket.on("stopTyping", ({ senderId, receiverId }) => {
-      if (receiverId === user._id) {
-        setTypingUsers((prev) => {
-          const updated = { ...prev };
-          delete updated[senderId];
-          return updated;
-        });
-      }
+    socket.on("stopTyping", (senderId) => {
+      setTypingUsers((prev) => {
+        const updated = { ...prev };
+        delete updated[senderId];
+        return updated;
+      });
     });
 
     return () => {
       socket.off("onlineUsersUpdate");
-      socket.off("newMessage");
+      socket.off("receiveMessage");
       socket.off("typing");
       socket.off("stopTyping");
     };
-  }, [user, onUnreadUpdate]);
+  }, [user, incrementUnread]);
 
-  const handleSelectUser = (u) => {
+  const handleSelectUser = async (u) => {
     if (u.userId === user._id) return;
 
-    // Reset unread count for this user
-    setUnreadCounts((prev) => {
-      const updated = { ...prev, [u.userId]: 0 };
-      if (onUnreadUpdate) {
-        const total = Object.values(updated).reduce((a, b) => a + b, 0);
-        onUnreadUpdate(total);
-      }
-      return updated;
-    });
+    // ✅ Clear local unread for this user (updates total instantly)
+    clearUnreadForUser(u.userId);
+
+    // ✅ Call API to sync DB (for persistence/multi-device)
+    try {
+      await api.put(`/chat/mark-read/${u.userId}`);
+    } catch (err) {
+      console.error("Failed to mark read:", err);
+      // Revert local if API fails? Optional: increment back, but rare.
+    }
 
     navigate(`/chat/${u.userId}`);
   };
@@ -113,7 +105,7 @@ const getAvatarUrl = (avatar) => {
       )}
 
       {sortedUsers.map((u) => {
-        const isMe = u.userId === user?._id;
+        const isMe = u.userId === user._id;
         const isSelected = selectedUser?._id === u.userId;
         const isTyping = typingUsers[u.userId] && !isMe;
         const unread = unreadCounts[u.userId] || 0;
@@ -128,25 +120,24 @@ const getAvatarUrl = (avatar) => {
             `}
           >
             {/* Avatar + status */}
-<div className="relative">
-  <img
-    src={getAvatarUrl(u.avatar)}   
-    alt={u.username}
-    className="w-10 h-10 rounded-full object-cover border"
-  />
-  <Circle
-    className="absolute bottom-0 right-0 w-3 h-3 text-green-500  bg-green-500 rounded-full"
-    strokeWidth={6}
-  />
+            <div className="relative">
+              <img
+                src={getAvatarUrl(u.avatar)}   
+                alt={u.username}
+                className="w-10 h-10 rounded-full object-cover border"
+              />
+              <Circle
+                className="absolute bottom-0 right-0 w-3 h-3 text-green-500  bg-green-500 rounded-full"
+                strokeWidth={6}
+              />
 
-  {/* 🔴 Unread Badge */}
-  {unread > 0 && !isMe && (
-    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-      {unread}
-    </span>
-  )}
-</div>
-
+              {/* 🔴 Unread Badge */}
+              {unread > 0 && !isMe && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                  {unread}
+                </span>
+              )}
+            </div>
 
             {/* Username + typing */}
             <div className="flex flex-col leading-tight">
@@ -155,9 +146,14 @@ const getAvatarUrl = (avatar) => {
                 {isMe && <span className="text-xs ml-1">(You)</span>}
               </span>
               {isTyping && (
-                <span className="text-xs text-green-500 animate-pulse">
-                  typing…
-                </span>
+                <div className="flex items-center gap-2 mt-1">
+                  
+                  <div className="flex gap-1">
+                    <span className="w-1.5 h-1.5 bg-pink-500 rounded-full animate-bounce"></span>
+                    <span className="w-1.5 h-1.5 bg-pink-500 rounded-full animate-bounce [animation-delay: -0.2s]"></span>
+                    <span className="w-1.5 h-1.5 bg-pink-500 rounded-full animate-bounce [animation-delay: -0.4s]"></span>
+                  </div>
+                </div>
               )}
             </div>
           </div>

@@ -1,10 +1,9 @@
-
 import { create } from "zustand";
 
-export const useChatStore = create((set) => ({
+export const useChatStore = create((set, get) => ({
   unreadCounts: {},
-
   totalUnread: 0,
+  activeChatId: null, // ✅ Track open chat
 
   setUnreadCounts: (counts) =>
     set(() => {
@@ -12,9 +11,10 @@ export const useChatStore = create((set) => ({
       return { unreadCounts: counts, totalUnread: total };
     }),
 
-  // Add +1 unread to a specific user
+  // Add +1 unread to a specific user (only if chat not active)
   incrementUnread: (userId) =>
     set((state) => {
+      if (state.activeChatId === userId) return state; // ✅ Skip if chat open
       const updated = {
         ...state.unreadCounts,
         [userId]: (state.unreadCounts[userId] || 0) + 1,
@@ -28,13 +28,17 @@ export const useChatStore = create((set) => ({
     set((state) => {
       const updated = { ...state.unreadCounts, [userId]: 0 };
       const total = Object.values(updated).reduce((sum, n) => sum + n, 0);
-      return { unreadCounts: updated, totalUnread: total };
+      return { unreadCounts: updated, totalUnread: total, activeChatId: userId }; // ✅ Set active
     }),
+
+  // Set active chat (e.g., on open/close)
+  setActiveChat: (chatId) => set({ activeChatId: chatId }),
 
   // ✅ Clear all unread messages (optional, e.g. after logout)
   clearAllUnread: () =>
     set(() => ({
       unreadCounts: {},
       totalUnread: 0,
+      activeChatId: null,
     })),
 }));

@@ -1,15 +1,17 @@
 // src/components/NavBar.jsx
 import { Link, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
+import { useChatStore } from "../store/useChatStore"; // ✅ Added
 import { Menu, X, MessageCircle, Search } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { DotSpinner } from "@uiball/loaders";
-import api from "../utils/axiosInstance";
+import api from "../utils/axiosInstance"; // ✅ Added for fetch
 import mautamuLogo from "../assets/mautamuLogo.png";
 import Loader from "../pages/Loader";
 
 export default function NavBar() {
   const { user, logout, loading: authLoading } = useAuthStore();
+  const { totalUnread, setUnreadCounts } = useChatStore(); // ✅ Use store
   const nav = useNavigate();
 
   // UI state
@@ -17,7 +19,6 @@ export default function NavBar() {
   const [searchOpen, setSearchOpen] = useState(false); // fullscreen search overlay
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [loading, setLoading] = useState(true);
 
@@ -78,7 +79,6 @@ export default function NavBar() {
       setSuggestions([]);
     } finally {
             setLoading(false);
-(false);
     }
   };
 
@@ -94,27 +94,30 @@ export default function NavBar() {
     }, 300); // 300ms debounce
     return () => clearTimeout(timer);
   }, [searchQuery, searchOpen]);
-const fetchUnreadCount = async () => {
-  try {
-    if (!user) return;
-    const res = await api.get("/chat/unread/count");
-    setUnreadCount(res.data.count || 0);
-  } catch (err) {
-    console.error("Failed to fetch unread count:", err);
-  }
-};
 
-// fetch once + refresh every 10s
-useEffect(() => {
-  if (!user) {
-    setUnreadCount(0);
-    return;
-  }
+  // ✅ Fetch initial unread on user load (sets store)
+  useEffect(() => {
+    if (!user) {
+      setUnreadCounts({}); // Clear on logout
+      return;
+    }
 
-  fetchUnreadCount();
-  const interval = setInterval(fetchUnreadCount, 10000);
-  return () => clearInterval(interval);
-}, [user]);
+    const fetchInitialUnread = async () => {
+      try {
+        const res = await api.get("/chat/unread/by-user");
+        const counts = {};
+        res.data.forEach(({ _id, count }) => {
+          counts[_id] = count;
+        });
+        setUnreadCounts(counts); // Triggers total calc
+      } catch (err) {
+        console.error("Failed to fetch initial unread:", err);
+      }
+    };
+
+    fetchInitialUnread();
+  }, [user, setUnreadCounts]);
+
   // close overlay/suggestions on ESC
   useEffect(() => {
     const onKey = (e) => {
@@ -241,9 +244,9 @@ useEffect(() => {
         title="Messenger"
       >
         <MessageCircle size={28} strokeWidth={2.5} />
-        {unreadCount > 0 && (
+        {totalUnread > 0 && (
           <span className="absolute -top-1 -right-2 bg-pink-700 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-md animate-pulse">
-            {unreadCount}
+            {totalUnread}
           </span>
         )}
       </Link>
@@ -337,9 +340,9 @@ useEffect(() => {
         title="Messenger"
       >
         <MessageCircle size={28} strokeWidth={2.5} />
-        {unreadCount > 0 && (
+        {totalUnread > 0 && (
           <span className="absolute -top-1 -right-2 bg-pink-700 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-md animate-pulse">
-            {unreadCount}
+            {totalUnread}
           </span>
         )}
       </Link>
