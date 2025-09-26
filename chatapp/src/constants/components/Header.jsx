@@ -100,7 +100,7 @@ export default function Header() {
   };
 
   return (
-    <div className="w-full min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-pink-200 via-rose-100 to-pink-50 px-4 py-12">
+    <div className="w-full  min-h-screen  flex-col items-center justify-center bg-gradient-to-br from-pink-200 via-rose-100 to-pink-50 px-4 py-12">
       {/* Title Section */}
       <div className="text-center mb-6 min-h-[120px] space-y-2">
         <h1

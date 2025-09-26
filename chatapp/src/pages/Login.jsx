@@ -1,33 +1,9 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import axios from "axios";
-import { create } from "zustand";
 import { TailSpin } from "react-loader-spinner";
-import { EyeIcon,  EyeOffIcon } from "@heroicons/react/outline";
-
-const useAuthStore = create((set) => ({
-  user: JSON.parse(localStorage.getItem("user")) || null,
-  token: localStorage.getItem("token") || null,
-  setAuth: (user, token) => {
-    
-    set({ user, token });
-    localStorage.setItem("user", JSON.stringify(user));
-    localStorage.setItem("token", token);
-    axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-  },
-  logout: () => {
-    set({ user: null, token: null });
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    delete axios.defaults.headers.common["Authorization"];
-  },
-}));
-
-// ✅ On app load, if token exists, set axios default header
-const tokenFromStorage = localStorage.getItem("token");
-if (tokenFromStorage) {
-  axios.defaults.headers.common["Authorization"] = `Bearer ${tokenFromStorage}`;
-}
+import { EyeIcon, EyeOffIcon } from "@heroicons/react/outline";
+import { useAuthStore } from "../store/useAuthStore"; // ✅ use central store
+import { showToast } from "../components/utils/showToast";
 
 export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
@@ -35,7 +11,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   const nav = useNavigate();
-  const setAuth = useAuthStore((s) => s.setAuth);
+  const login = useAuthStore((s) => s.login);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -45,12 +21,17 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await axios.post("http://localhost:5000/api/auth/login", form);
-      setAuth(res.data.user, res.data.token);
-      nav("/");
+      const user = await login(form); 
+
+      
+      if (!user?.hasProfile) {
+        nav("/create-account"); 
+      } else {
+        nav("/"); 
+      }
     } catch (err) {
       console.error(err);
-      alert("Login failed. Check credentials.");
+      showToast("Login failed. Check credentials.", true);
     } finally {
       setLoading(false);
     }
@@ -101,7 +82,7 @@ export default function Login() {
           </button>
         </div>
 
-        {/* Submit Button with Spinner */}
+        {/* Submit */}
         <button
           type="submit"
           disabled={loading}

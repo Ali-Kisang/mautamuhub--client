@@ -10,6 +10,18 @@ export default function OnlineUsersList({ selectedUser, onUnreadUpdate }) {
   const [typingUsers, setTypingUsers] = useState({});
   const [unreadCounts, setUnreadCounts] = useState({});
   const navigate = useNavigate();
+const getAvatarUrl = (avatar) => {
+  if (!avatar || avatar === "/default-avatar.png") {
+    return "/default-avatar.png";
+  }
+
+  // If it's already a full URL, don’t prepend Cloudinary again
+  if (avatar.startsWith("http")) {
+    return avatar;
+  }
+
+  return `https://res.cloudinary.com/dcxggvejn/image/upload/${avatar}`;
+};
 
   useEffect(() => {
     if (!user?._id) return;
@@ -92,7 +104,7 @@ export default function OnlineUsersList({ selectedUser, onUnreadUpdate }) {
   return (
     <div className="p-4 space-y-2 h-full overflow-y-auto">
       <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-        <Circle className="w-3 h-3 text-green-500 animate-pulse" />
+        <Circle className="w-3 h-3 text-green-500 rounded-full bg-green-500 animate-pulse" />
         <span className="text-pink-500">Online Users</span>
       </h2>
 
@@ -116,24 +128,25 @@ export default function OnlineUsersList({ selectedUser, onUnreadUpdate }) {
             `}
           >
             {/* Avatar + status */}
-            <div className="relative">
-              <img
-                src={u.avatar || "/default-avatar.png"}
-                alt={u.username}
-                className="w-10 h-10 rounded-full object-cover border"
-              />
-              <Circle
-                className="absolute bottom-0 right-0 w-3 h-3 text-green-500 animate-pulse bg-white rounded-full"
-                strokeWidth={6}
-              />
+<div className="relative">
+  <img
+    src={getAvatarUrl(u.avatar)}   
+    alt={u.username}
+    className="w-10 h-10 rounded-full object-cover border"
+  />
+  <Circle
+    className="absolute bottom-0 right-0 w-3 h-3 text-green-500  bg-green-500 rounded-full"
+    strokeWidth={6}
+  />
 
-              {/* 🔴 Unread Badge */}
-              {unread > 0 && !isMe && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                  {unread}
-                </span>
-              )}
-            </div>
+  {/* 🔴 Unread Badge */}
+  {unread > 0 && !isMe && (
+    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+      {unread}
+    </span>
+  )}
+</div>
+
 
             {/* Username + typing */}
             <div className="flex flex-col leading-tight">

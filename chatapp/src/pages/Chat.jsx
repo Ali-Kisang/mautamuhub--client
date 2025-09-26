@@ -256,7 +256,7 @@ useEffect(() => {
         <span>Chat with {receiverName}</span>
         <button
           onClick={() => navigate("/profile")}
-          className="bg-white text-pink-600 px-3 py-1 rounded-md text-sm hover:bg-pink-100 transition"
+          className="bg-white text-pink-600 px-3 py-1 rounded-md text-sm hover:bg-pink-100 transition hover:cursor-pointer"
         >
           ← Back to Profile
         </button>

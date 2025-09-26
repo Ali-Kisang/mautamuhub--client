@@ -67,16 +67,30 @@ import TermsAndConditions from "./constants/components/TermsAndConditions";
 import PrivacyPolicy from "./constants/components/PrivacyPolicy";
 import RefundPolicy from "./constants/components/RefundPolicy";
 import PaymentMethods from "./constants/components/PaymentMethods";
+import { useEffect } from "react";
+import Loader from "./pages/Loader";
 
-//import Nairobi from "./constants/components/Nairobi";
-function PrivateRoute({ children }) {
+ function PrivateRoute({ children }) {
   const { user } = useAuthStore();
   return user ? children : <Navigate to="/login" replace />;
 }
 
 
 export default function App() {
-  
+
+  const { checkAuth, loading } = useAuthStore();
+
+ useEffect(() => {
+  checkAuth();
+}, [checkAuth]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader text="Restoring your session..." size={40} color="text-pink-500" />
+      </div>
+    );
+  }
   return (
     <BrowserRouter>
      
@@ -87,18 +101,34 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Hero/>} />
         <Route path="/too-young" element={<TooYoung />} />
-        <Route path="/create-account" element={<CreateAccount />} />
+        
+        <Route path="/create-account" element={ <PrivateRoute><CreateAccount /></PrivateRoute>} />
         <Route path="/onboading" element={<OnBoarding />} />
         <Route path="/users" element={<UsersList />} />
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
         {/*<Route path="/profile" element={<ProfileSetup />} /> }*/}
-        <Route path="/profile" element={<ProfilePage />} />
+        <Route
+  path="/profile"
+  element={
+    <PrivateRoute>
+      <ProfilePage />
+    </PrivateRoute>
+  }
+/>
         
          <Route path="*" element={<ErrorPage />} />
-        <Route path="/chat/:id" element={<Chat />} />
+       <Route
+  path="/chat/:id"
+  element={
+    <PrivateRoute>
+      <Chat />
+    </PrivateRoute>
+  }
+/>
           <Route path="/profile/:id" element={<ProfileDetailsPage />} />
-          <Route path="/chat" element={<ChatPage />} />
+          
+          <Route path="/chat" element={<PrivateRoute><ChatPage /></PrivateRoute>} />
            <Route path="/search" element={<SearchPage />} />
            <Route path="/mombasa-escorts" element={<Mombasa />} />
         <Route path="/kwale-escorts" element={<Kwale />} />

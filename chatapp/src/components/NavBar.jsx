@@ -6,10 +6,10 @@ import { useState, useEffect, useRef } from "react";
 import { DotSpinner } from "@uiball/loaders";
 import api from "../utils/axiosInstance";
 import mautamuLogo from "../assets/mautamuLogo.png";
+import Loader from "../pages/Loader";
+
 export default function NavBar() {
-  // auth + routing
-  const user = useAuthStore((state) => state.user);
-  const logout = useAuthStore((state) => state.logout);
+  const { user, logout, loading: authLoading } = useAuthStore();
   const nav = useNavigate();
 
   // UI state
@@ -221,40 +221,76 @@ useEffect(() => {
   </Link>
 </div>
 
-            {/* Desktop Menu */}
-            <div className="hidden md:flex space-x-8 items-center text-lg lg:text-xl font-medium">
-              <Link to="/profile" className="text-pink-600 hover:text-pink-700 transition-colors duration-200">
-                Profile
-              </Link>
+      {/* Desktop Menu */}
+<div className="hidden md:flex space-x-8 items-center text-lg lg:text-xl font-medium">
+  {user && (
+    <>
+    <span className="text-sm text-gray-500 font-medium">
+        Hi, {user.username || "User"}
+      </span>
+      <Link
+        to="/profile"
+        className="text-pink-600 hover:text-pink-700 transition-colors duration-200"
+      >
+        Profile
+      </Link>
 
-              <Link to="/profile" className="relative text-pink-600 hover:text-pink-700 transition-colors duration-200 flex items-center" title="Messenger">
-                <MessageCircle size={28} strokeWidth={2.5} />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-2 bg-pink-700 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-md animate-pulse">
-                    {unreadCount}
-                  </span>
-                )}
-              </Link>
+      <Link
+        to="/profile"
+        className="relative text-pink-600 hover:text-pink-700 transition-colors duration-200 flex items-center"
+        title="Messenger"
+      >
+        <MessageCircle size={28} strokeWidth={2.5} />
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-2 bg-pink-700 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-md animate-pulse">
+            {unreadCount}
+          </span>
+        )}
+      </Link>
 
-              {/* Open overlay search */}
-              <button onClick={() => { setSearchOpen(true); setTimeout(() => inputRef.current?.focus(), 0); }} className="text-pink-600 hover:text-pink-700 transition-colors duration-200" title="Search">
-                <Search className="hover:cursor-pointer" size={26} strokeWidth={2.5} />
-              </button>
+      <Link
+        to="/create-account"
+        className="text-pink-600 hover:text-pink-700 transition-colors duration-200"
+      >
+        Create Account
+      </Link>
+    </>
+  )}
 
-              <Link to="/create-account" className="text-pink-600 hover:text-pink-700 transition-colors duration-200">
-                Create Account
-              </Link>
+  {/* Search Icon - Always Visible */}
+  <button
+    onClick={() => {
+      setSearchOpen(true);
+      setTimeout(() => inputRef.current?.focus(), 0);
+    }}
+    className="text-pink-600 hover:text-pink-700 transition-colors duration-200"
+    title="Search"
+  >
+    <Search size={26} strokeWidth={2.5} />
+  </button>
 
-              {!user ? (
-                <Link to="/login" className="px-4 py-2 bg-pink-600 text-white rounded-xl hover:bg-pink-700 transition-colors duration-200 hover:cursor-pointer">
-                  Login
-                </Link>
-              ) : (
-                <button onClick={handleLogout} className="px-4 py-2 bg-pink-600 text-white rounded-xl hover:bg-pink-700 transition-colors duration-200 hover:cursor-pointer">
-                  Logout
-                </button>
-              )}
-            </div>
+  {/* Login / Logout / Loader */}
+  {authLoading ? (
+    <div className="px-4 py-2">
+      <Loader text="" size={20} color="text-pink-600" />
+    </div>
+  ) : !user ? (
+    <Link
+      to="/login"
+      className="px-4 py-2 bg-pink-600 text-white rounded-xl hover:bg-pink-700 transition-colors duration-200 hover:cursor-pointer"
+    >
+      Login
+    </Link>
+  ) : (
+    <button
+      onClick={handleLogout}
+      className="px-4 py-2 bg-pink-600 text-white rounded-xl hover:bg-pink-700 transition-colors duration-200 hover:cursor-pointer"
+    >
+      Logout
+    </button>
+  )}
+</div>
+
 
             {/* Mobile Menu Button */}
             <div className="md:hidden flex items-center space-x-3">
@@ -280,30 +316,66 @@ useEffect(() => {
             <button onClick={() => setOpen(false)} className="text-pink-600 hover:text-pink-700"><X size={28} /></button>
           </div>
 
-          <div className="flex flex-col space-y-6 px-6 py-6 text-lg font-medium">
-            <Link to="/profile" onClick={() => setOpen(false)} className="text-pink-600 hover:text-pink-700">My Profile</Link>
+          <div className="flex flex-col space-y-6 p-6 text-lg font-medium">
+  {user && (
+    <>
+    <span className="text-sm text-gray-500 font-medium">
+        Hi, {user.username || "User"}
+      </span>
+      <Link
+        to="/profile"
+        onClick={() => setOpen(false)}
+        className="text-pink-600 hover:text-pink-700 transition-colors duration-200"
+      >
+        Profile
+      </Link>
 
-            <Link to="/chat" onClick={() => setOpen(false)} className="relative text-pink-600 hover:text-pink-700 flex items-center gap-2">
-              <MessageCircle size={24} /> Messages
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-2 bg-pink-700 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-md animate-pulse">
-                  {unreadCount}
-                </span>
-              )}
-            </Link>
+      <Link
+        to="/profile"
+        onClick={() => setOpen(false)}
+        className="relative text-pink-600 hover:text-pink-700 transition-colors duration-200 flex items-center"
+        title="Messenger"
+      >
+        <MessageCircle size={28} strokeWidth={2.5} />
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-2 bg-pink-700 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-md animate-pulse">
+            {unreadCount}
+          </span>
+        )}
+      </Link>
 
-            <button onClick={() => { setOpen(false); setSearchOpen(true); setTimeout(() => inputRef.current?.focus(), 0); }} className="text-pink-600 hover:text-pink-700 flex items-center gap-2 hover:cursor-pointer">
-              <Search size={22} /> Search
-            </button>
+      <Link
+        to="/create-account"
+        onClick={() => setOpen(false)}
+        className="text-pink-600 hover:text-pink-700 transition-colors duration-200"
+      >
+        Create Account
+      </Link>
+    </>
+  )}
 
-            <Link to="/create-account" onClick={() => setOpen(false)} className="text-pink-600 hover:text-pink-700">Create Account</Link>
-
-            {!user ? (
-              <Link to="/login" onClick={() => setOpen(false)} className="px-4 py-2 bg-pink-600 text-white rounded-xl text-center hover:bg-pink-700">Login</Link>
-            ) : (
-              <button onClick={handleLogout} className="px-4 py-2 text-white rounded-xl hover:bg-pink-700 hover:text-white bg-pink-600 hover:cursor-pointer">Logout</button>
-            )}
-          </div>
+  {/* Login / Logout / Loader */}
+  {authLoading ? (
+    <div className="flex justify-center py-2">
+      <Loader text="" size={20} color="text-pink-600" />
+    </div>
+  ) : !user ? (
+    <Link
+      to="/login"
+      onClick={() => setOpen(false)}
+      className="px-4 py-2 bg-pink-600 text-white rounded-xl text-center hover:bg-pink-700"
+    >
+      Login
+    </Link>
+  ) : (
+    <button
+      onClick={handleLogout}
+      className="px-4 py-2 text-white rounded-xl bg-pink-600 hover:bg-pink-700 hover:cursor-pointer"
+    >
+      Logout
+    </button>
+  )}
+</div>
         </div>
       </nav>
 
@@ -346,13 +418,12 @@ useEffect(() => {
 
             {/* Loading indicator */}
             {loading && (
-              <div className="absolute left-0 right-0 bg-white border border-pink-200 rounded-b-xl mt-2 px-4 py-2 text-sm text-gray-500">
-                      <DotSpinner size={30} speed={0.9} color="pink" />
+  <div className="absolute left-0 right-0 bg-white border border-pink-200 rounded-b-xl mt-2 px-4 py-2 flex justify-center">
+    <Loader text="" size={24} color="text-pink-600" />
+  </div>
+)}
 
-              </div>
-            )}
-
-            {/* Suggestions list */}
+           {/* Suggestions list */}
             {suggestions.length > 0 && (
               <ul ref={listRef} className="absolute left-0 right-0 bg-white shadow-lg border mt-2 rounded-b-xl z-50 max-h-96 overflow-y-auto">
                 {suggestions.map((profile, idx) => (

@@ -7,7 +7,7 @@ export const showToast = (message, isError = false) => {
       background: isError ? "#FF6F61" : "#ec407a",
       color: "white",
     },
-    position: "top-right",
+    position: "top-center",
     autoClose: 10000,
     hideProgressBar: true,
   });
