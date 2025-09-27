@@ -228,7 +228,7 @@ export default function NavBar() {
 <div className="hidden md:flex space-x-8 items-center text-lg lg:text-xl font-medium">
   {user && (
     <>
-    <span className="text-sm text-gray-500 font-medium">
+    <span className="text-md text-pink-500 italic font-medium">
         Hi, {user.username || "User"}
       </span>
       <Link
@@ -322,7 +322,7 @@ export default function NavBar() {
           <div className="flex flex-col space-y-6 p-6 text-lg font-medium">
   {user && (
     <>
-    <span className="text-sm text-gray-500 font-medium">
+    <span className="text-sm text-pink-500 italic font-medium">
         Hi, {user.username || "User"}
       </span>
       <Link

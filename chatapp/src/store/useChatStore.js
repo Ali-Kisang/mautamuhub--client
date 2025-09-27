@@ -1,44 +1,51 @@
 import { create } from "zustand";
+import api from "../utils/axiosInstance"; // For fetch
 
 export const useChatStore = create((set, get) => ({
+  activeChat: null,
   unreadCounts: {},
-  totalUnread: 0,
-  activeChatId: null, // ✅ Track open chat
 
-  setUnreadCounts: (counts) =>
-    set(() => {
-      const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
-      return { unreadCounts: counts, totalUnread: total };
-    }),
+  setActiveChat: (chatId) => set({ activeChat: chatId }),
 
-  // Add +1 unread to a specific user (only if chat not active)
-  incrementUnread: (userId) =>
-    set((state) => {
-      if (state.activeChatId === userId) return state; // ✅ Skip if chat open
-      const updated = {
+  incrementUnread: (senderId, increment = 1) =>
+    set((state) => ({
+      unreadCounts: {
         ...state.unreadCounts,
-        [userId]: (state.unreadCounts[userId] || 0) + 1,
-      };
-      const total = Object.values(updated).reduce((sum, n) => sum + n, 0);
-      return { unreadCounts: updated, totalUnread: total };
-    }),
-
-  // Clear unread messages for a specific user (when conversation is opened/read)
-  clearUnreadForUser: (userId) =>
-    set((state) => {
-      const updated = { ...state.unreadCounts, [userId]: 0 };
-      const total = Object.values(updated).reduce((sum, n) => sum + n, 0);
-      return { unreadCounts: updated, totalUnread: total, activeChatId: userId }; // ✅ Set active
-    }),
-
-  // Set active chat (e.g., on open/close)
-  setActiveChat: (chatId) => set({ activeChatId: chatId }),
-
-  // ✅ Clear all unread messages (optional, e.g. after logout)
-  clearAllUnread: () =>
-    set(() => ({
-      unreadCounts: {},
-      totalUnread: 0,
-      activeChatId: null,
+        [senderId]: (state.unreadCounts[senderId] || 0) + increment,
+      },
     })),
+
+  // ✅ Add this if missing
+  resetUnread: (senderId) =>
+    set((state) => ({
+      unreadCounts: {
+        ...state.unreadCounts,
+        [senderId]: 0,
+      },
+    })),
+
+  clearUnreadForUser: (userId) => get().resetUnread(userId), // Alias for list
+
+  fetchUnreadCounts: async () => {
+    try {
+      const { data } = await api.get("/chat/unread-by-user");
+      set({ unreadCounts: data.reduce((acc, { _id: id, count }) => ({ ...acc, [id]: count }), {}) });
+    } catch (err) {
+      console.error("Fetch unread failed:", err);
+    }
+  },
+
+  getTotalUnread: () => Object.values(get().unreadCounts).reduce((sum, count) => sum + count, 0),
+
+  // ✅ New: Fetch recent convos (for Messenger list)
+  fetchRecentConversations: async () => {
+    try {
+      const { data } = await api.get("/chat/recent");
+      // Sync unreads from convos
+      const updatedCounts = data.reduce((acc, convo) => ({ ...acc, [convo.userId]: convo.unreadCount }), {});
+      set({ unreadCounts: updatedCounts });
+    } catch (err) {
+      console.error("Fetch recent failed:", err);
+    }
+  },
 }));

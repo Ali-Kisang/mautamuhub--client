@@ -1,18 +1,20 @@
 import { useEffect, useState, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import api from "../utils/axiosInstance";
 import { useAuthStore } from "../store/useAuthStore";
-import { useChatStore } from "../store/useChatStore"; // ✅ Added for active chat tracking
+import { useChatStore } from "../store/useChatStore";
 import { socket } from "../utils/socket";
 import moment from "moment";
-import { Check, CheckCheck, Send, Trash2 } from "lucide-react";
+import { Check, CheckCheck, Send, Trash2, Bell } from "lucide-react";
 import toast from "react-hot-toast";
 import { MessageCircle } from "lucide-react";
 
 export default function Chat() {
   const { id: receiverId } = useParams();
+  const [searchParams] = useSearchParams();
+  const isFromPush = searchParams.get("fromPush") === "true";
   const { user } = useAuthStore();
-  const { setActiveChat } = useChatStore(); // ✅ Track open chat for unread logic
+  const { setActiveChat, unreadCounts, resetUnread } = useChatStore();
   const [editingMessage, setEditingMessage] = useState(null);
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
@@ -20,19 +22,24 @@ export default function Chat() {
   const [receiverName, setReceiverName] = useState("User");
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
-  const typingTimeoutRef = useRef(null); // ✅ For debounced typing
+  const typingTimeoutRef = useRef(null);
 
-  // ✅ scroll to bottom
+  // Scroll to bottom
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Chat.jsx
+  // Play notification sound
+  const playNotificationSound = () => {
+    const audio = new Audio("/notify.wav");
+    audio.play().catch((err) => console.error("Audio play failed:", err));
+  };
+
+  // Fetch receiver name
   useEffect(() => {
     const fetchReceiverName = async () => {
       try {
         const res = await api.get(`/users/profile/${receiverId}`);
-        // ✅ Corrected path
         setReceiverName(res.data.user.username || "User");
       } catch (err) {
         console.error("Error fetching receiver name:", err);
@@ -41,61 +48,54 @@ export default function Chat() {
     if (receiverId) fetchReceiverName();
   }, [receiverId]);
 
-  // ✅ play sound
-  const playNotificationSound = () => {
-    const audio = new Audio("/notify.wav");
-    audio.play().catch((err) => console.error("Audio play failed:", err));
-  };
-
-  // ✅ main socket effect
+  // Main effect: Socket, fetch, mark read, handle fromPush
   useEffect(() => {
     if (!user?._id) return;
 
     socket.emit("joinRoom", user._id);
 
-    // new message (NO auto-markAsSeen—chat is open!)
+    // Socket listeners
     socket.on("receiveMessage", (msg) => {
-      if (
-        (msg.senderId.toString() === receiverId && msg.receiverId.toString() === user._id.toString()) ||
-        (msg.receiverId.toString() === receiverId && msg.senderId.toString() === user._id.toString())
-      ) {
-        setMessages((prev) => [...prev, msg]); // Just add—no DB mark for unread sync
+      // FIXED: Only handle incoming messages (from receiver to me) to prevent dupe adds on sender or double emits
+      if (msg.senderId.toString() === receiverId && msg.receiverId.toString() === user._id.toString()) {
+        // FIXED: Check if already in messages to avoid dupes from double emits
+        setMessages((prev) => {
+          if (prev.some((m) => m._id === msg._id)) {
+            console.log("Dupe message ignored:", msg._id); // Debug log
+            return prev;
+          }
+          console.log("Adding new message:", msg._id); // Debug log
+          return [...prev, msg];
+        });
 
-        // ✅ mark delivered (still useful)
         socket.emit("markDelivered", {
           messageId: msg._id,
           receiverId: msg.senderId,
         });
 
-        // ✅ play notification + toast if message is from the other user
-        if (msg.senderId.toString() === receiverId) {
-          playNotificationSound();
-          toast.success(`${receiverName}: ${msg.message}`, {
-            icon: <MessageCircle size={22} />,
-            duration: 4000,
-            style: {
-              background: "#fff",
-              color: "#333",
-              fontSize: "14px",
-            },
-          });
-        }
+        playNotificationSound();
+        toast.success(`${receiverName}: ${msg.message}`, {
+          icon: <MessageCircle size={22} />,
+          duration: 4000,
+          style: {
+            background: "#fff",
+            color: "#333",
+            fontSize: "14px",
+          },
+        });
       }
     });
 
-    // edited
     socket.on("messageEdited", (msg) => {
       setMessages((prev) => prev.map((m) => (m._id === msg._id ? msg : m)));
     });
 
-    // deleted
     socket.on("messageDeleted", (msgId) => {
       setMessages((prev) =>
         prev.map((m) => (m._id === msgId ? { ...m, deleted: true } : m))
       );
     });
 
-    // typing
     socket.on("typing", (senderId) => {
       if (senderId.toString() === receiverId) setTypingUser(receiverName);
     });
@@ -104,36 +104,56 @@ export default function Chat() {
       if (senderId.toString() === receiverId) setTypingUser(null);
     });
 
-    // ✅ seen status update
     socket.on("messageSeen", (msgId) => {
       setMessages((prev) =>
         prev.map((m) => (m._id === msgId ? { ...m, status: "seen" } : m))
       );
     });
 
-    // ✅ delivered status update
     socket.on("messageDelivered", (msgId) => {
       setMessages((prev) =>
         prev.map((m) => (m._id === msgId ? { ...m, status: "delivered" } : m))
       );
     });
 
-    // initial fetch + mark all as seen
+    // Initial fetch + mark read
     (async () => {
       try {
         const res = await api.get(`/chat/${receiverId}`);
         setMessages(res.data);
 
-        // ✅ Mark ALL prior messages as seen (DB sync for unread)
         if (res.data.length > 0) {
           await api.put(`/chat/mark-read/${receiverId}`);
+          resetUnread(receiverId); // Reset in store after marking
+        }
+
+        // From push? Extra flair
+        if (isFromPush) {
+          playNotificationSound();
+          toast.success("Opened from notification – caught up! 🔔", {
+            icon: <Bell size={22} />,
+            duration: 3000,
+          });
         }
       } catch (err) {
         console.error("Fetch messages error:", err);
       }
     })();
 
-    // ✅ Set active chat
+    // Listen for SW postMessage (push while tab open/backgrounded)
+    const handleMessageFromSW = (event) => {
+      if (event.data.type === 'PUSH_RECEIVED' && event.data.data.senderId === receiverId) {
+        playNotificationSound();
+        toast.success(`New message from ${receiverName}! (Push sync)`, {
+          icon: <MessageCircle size={22} />,
+          duration: 4000,
+        });
+        // FIXED: Don't increment unread here if chat is open (in-app, will mark read soon)
+        // Rely on backend aggregate for accuracy
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', handleMessageFromSW);
+
     setActiveChat(receiverId);
 
     return () => {
@@ -144,15 +164,16 @@ export default function Chat() {
       socket.off("stopTyping");
       socket.off("messageSeen");
       socket.off("messageDelivered");
-      setActiveChat(null); // ✅ Clear on unmount (close chat)
+      navigator.serviceWorker.removeEventListener('message', handleMessageFromSW);
+      setActiveChat(null);
     };
-  }, [receiverId, user?._id, receiverName, setActiveChat]);
+  }, [receiverId, user?._id, receiverName, setActiveChat, resetUnread, isFromPush]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  // ✅ send message (with FormData for Multer compatibility)
+  // Send message
   const sendMessage = async () => {
     if (!text.trim()) return;
 
@@ -169,14 +190,13 @@ export default function Chat() {
         setEditingMessage(null);
         setText("");
       } catch (err) {
-        console.error("Edit failed FULL ERROR:", err.response?.data || err.message || err); 
-        toast.error("Failed to edit message: " + (err.response?.data?.error || err.message));
+        console.error("Edit failed:", err);
+        toast.error("Failed to edit message");
       }
       return;
     }
 
     try {
-      // ✅ Use FormData for text-only send (Multer expects multipart)
       const formData = new FormData();
       formData.append("receiverId", receiverId);
       formData.append("message", text);
@@ -184,31 +204,32 @@ export default function Chat() {
       const res = await api.post("/chat", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      console.log("✅ Sent res.data:", res.data); // Debug: Confirm add payload
+      // FIXED: Optimistic add with initial "sent" status
+      const optimisticMsg = { ...res.data, status: "sent" };
+      setMessages((prev) => [...prev, optimisticMsg]);
+      console.log("Sent message added:", res.data._id); // Debug log
+
+      // Emit to trigger receiver (but note: Remove server.js socket.on("sendMessage") to avoid double emit!)
       socket.emit("sendMessage", res.data);
-      setMessages((prev) => {
-        const updated = [...prev, res.data];
-        console.log("📝 Updated messages count:", updated.length); // Debug: See growth
-        return updated;
-      });
       setText("");
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
       socket.emit("stopTyping", { senderId: user._id, receiverId });
     } catch (err) {
-      console.error("Send failed FULL ERROR:", err.response?.data || err.message || err); 
-      toast.error("Failed to send message: " + (err.response?.data?.error || err.message));
+      console.error("Send failed:", err);
+      toast.error("Failed to send message");
+      // Rollback optimistic if failed (optional)
+      setMessages((prev) => prev.slice(0, -1));
     }
   };
 
-  // ✅ edit message
+  // Edit/Delete/Typing handlers
   const handleEdit = (m) => {
     setEditingMessage(m);
     setText(m.message);
   };
 
-  // ✅ delete message
   const handleDelete = (id) => {
     toast(
       (t) => (
@@ -245,14 +266,10 @@ export default function Chat() {
           </div>
         </div>
       ),
-      {
-        duration: 4000,
-        position: "left-center",
-      }
+      { duration: 4000, position: "left-center" }
     );
   };
 
-  // ✅ typing (debounced to avoid spam)
   const handleTyping = (e) => {
     const value = e.target.value;
     setText(value);
@@ -264,16 +281,25 @@ export default function Chat() {
     if (value.trim()) {
       typingTimeoutRef.current = setTimeout(() => {
         socket.emit("typing", { senderId: user._id, receiverId });
-      }, 500); // Debounce 500ms
+      }, 500);
     } else {
       socket.emit("stopTyping", { senderId: user._id, receiverId });
     }
   };
 
+  // Get unread for this receiver (for header badge)
+  const unreadForReceiver = unreadCounts[receiverId] || 0;
+
   return (
     <div className="flex flex-col h-screen bg-gray-50 mt-16">
       <div className="p-4 bg-pink-600 text-white font-semibold text-lg shadow flex items-center justify-between">
         <span>Chat with {receiverName}</span>
+        {unreadForReceiver > 0 && (
+          <div className="flex items-center space-x-1 bg-red-500 text-white px-2 py-1 rounded-full text-xs">
+            <Bell size={12} />
+            <span>{unreadForReceiver}</span>
+          </div>
+        )}
         <button
           onClick={() => navigate("/profile")}
           className="bg-white text-pink-600 px-3 py-1 rounded-md text-sm hover:bg-pink-100 transition hover:cursor-pointer"
@@ -311,7 +337,6 @@ export default function Chat() {
                 </>
               )}
 
-              {/* timestamp + status */}
               <p className="text-[10px] mt-1 opacity-60 flex items-center space-x-1">
                 <span>{moment(m.createdAt).fromNow()}</span>
                 {isMine && !m.deleted && (
@@ -388,7 +413,12 @@ export default function Chat() {
             value={text}
             onChange={handleTyping}
             placeholder={editingMessage ? "Edit your message..." : "Type your message..."}
-            onKeyPress={(e) => e.key === "Enter" && sendMessage()} 
+            onKeyPress={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault(); // FIXED: Prevent double-trigger on Enter + form submit
+                sendMessage();
+              }
+            }}
             className="
               flex-1 rounded-2xl border border-gray-300 
               px-4 py-3 text-sm 
@@ -398,7 +428,7 @@ export default function Chat() {
           />
           <button
             onClick={sendMessage}
-            disabled={!text.trim()} 
+            disabled={!text.trim()}
             className="
               flex items-center justify-center 
               bg-pink-500 hover:bg-pink-600 disabled:bg-gray-300 disabled:cursor-not-allowed
@@ -409,7 +439,7 @@ export default function Chat() {
               focus:outline-none focus:ring-2 focus:ring-pink-300
             "
           >
-            <Send className="w-5 h-5 hover:cursor-pointer" />
+            <Send className="w-5 h-5" />
           </button>
         </div>
       </div>
