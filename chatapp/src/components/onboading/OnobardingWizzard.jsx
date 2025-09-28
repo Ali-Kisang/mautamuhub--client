@@ -8,6 +8,7 @@ import { StepReview } from "./steps/StepReview";
 import { useOnboardingStore } from "../../store/useOnboardingStore";
 import axios from "axios";
 import { useState } from "react";
+import toast from "react-hot-toast";
 
 export default function OnBoarding() {
   const [validationErrors, setValidationErrors] = useState({});
@@ -69,33 +70,59 @@ export default function OnBoarding() {
   };
 
   // ✅ Submit to backend
-  // ✅ Submit to backend
 const handleSubmit = async () => {
   try {
+    // ✅ Pre-submit: Run ALL validators to catch frontend issues
+    const allErrors = {};
+    // Personal
+    const personalErrors = validatePersonalInfo(formData.personal || {});
+    Object.assign(allErrors, personalErrors);
+    // Location
+    const locationErrors = validateLocation(formData.location || {});
+    Object.assign(allErrors, locationErrors);
+    // Additional
+    const additionalErrors = validateAdditionalInfo(formData.additional || {});
+    Object.assign(allErrors, additionalErrors);
+    // Services
+    const servicesErrors = validateServices(formData.services || {});
+    Object.assign(allErrors, servicesErrors);
+    // Account Type
+    const accountTypeErrors = validateAccountType(formData.accountType || {});
+    Object.assign(allErrors, accountTypeErrors);
+    // Photos
+    const photosErrors = validatePhotos(formData.photos || [], formData.accountType);
+    Object.assign(allErrors, photosErrors);
+
+    if (Object.keys(allErrors).length > 0) {
+      console.warn('⚠️ Validation failed - blocking submit:', allErrors);
+      toast.error('Please fix errors before submitting.');
+      return;
+    }
+
     const fd = new FormData();
 
-    // ensure username comes from authUser
-    const authUser = JSON.parse(localStorage.getItem("user")); // or from your store
+    // Ensure username from authUser
+    const authUser = JSON.parse(localStorage.getItem("user"));
     if (authUser?.username) {
       fd.append("personal[username]", authUser.username);
     }
 
-    // personal
+    // Personal
     Object.entries(formData.personal || {}).forEach(([key, value]) => {
       fd.append(`personal[${key}]`, value);
     });
 
-    // location
+    // Location
     Object.entries(formData.location || {}).forEach(([key, value]) => {
       fd.append(`location[${key}]`, value);
     });
 
-    // additional
+    // Additional
     Object.entries(formData.additional || {}).forEach(([key, value]) => {
       fd.append(`additional[${key}]`, value);
     });
 
-    // services
+    // Services
     if (Array.isArray(formData.services?.selected)) {
       formData.services.selected.forEach((s, i) =>
         fd.append(`services[selected][${i}]`, s)
@@ -105,12 +132,12 @@ const handleSubmit = async () => {
       fd.append("services[custom]", formData.services.custom);
     }
 
-    // accountType
+    // AccountType
     Object.entries(formData.accountType || {}).forEach(([key, value]) => {
       fd.append(`accountType[${key}]`, value);
     });
 
-    // photos
+    // Photos
     if (Array.isArray(formData.photos)) {
       formData.photos.forEach((photo) => {
         if (photo instanceof File) {
@@ -119,8 +146,26 @@ const handleSubmit = async () => {
       });
     } 
 
-    // send request
+    // ✅ LOG THE FULL PAYLOAD (FormData can't be JSON.stringified, so iterate)
+    console.log('🔍 FormData Entries Being Sent:');
+    for (let [key, value] of fd.entries()) {
+      console.log(`  ${key}:`, value instanceof File ? `[File: ${value.name}, size: ${value.size}]` : value);
+    }
+
+    // ✅ Check token
     const token = localStorage.getItem("token");
+    if (!token) {
+      throw new Error('No auth token found - cannot submit');
+    }
+    console.log('🔑 Token present:', token ? 'Yes' : 'No');
+
+    // TODO: Test without files? Uncomment below for JSON-only (no multipart)
+    // const profileData = { personal: formData.personal, /* ... other sections */ };
+    // const res = await axios.put("http://localhost:5000/api/users/profile", profileData, {
+    //   headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    // });
+
+    // Send request (multipart for files)
     const res = await axios.put("http://localhost:5000/api/users/profile", fd, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -129,10 +174,24 @@ const handleSubmit = async () => {
     });
 
     console.log("✅ Profile submitted successfully", res.data);
-    alert("Profile submitted successfully!");
+    toast.success("Profile submitted successfully!"); // Use toast instead of alert for better UX
+    // Optional: Navigate or reset store
   } catch (err) {
-    console.error("❌ Error submitting profile:", err);
-    alert("Error submitting profile");
+    // ✅ DETAILED ERROR LOGGING
+    console.error('💥 Full Error Details:', {
+      message: err.message,
+      status: err.response?.status, // Should be 500
+      backendError: err.response?.data, // KEY: Server message, e.g., { error: "Invalid services" }
+      backendStack: err.response?.data?.stack, // If exposed
+      headers: err.response?.headers,
+      requestConfig: {
+        method: err.config?.method,
+        url: err.config?.url,
+        headers: err.config?.headers,
+      },
+      // Re-log FormData if needed (but it's mutated, so from above)
+    });
+    toast.error(`Submit failed: ${err.response?.data?.error || err.message || 'Unknown error'}`);
   }
 };
 

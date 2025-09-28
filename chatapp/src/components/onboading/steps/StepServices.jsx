@@ -2,10 +2,11 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { ImCheckboxUnchecked, ImCheckboxChecked } from "react-icons/im";
 import toast from "react-hot-toast";
+
 export const validateServices = (data) => {
   const errors = {};
 
-  if (!data.selected || data.selected.length === 0) {
+  if (!data.selected || (data.selected || []).length === 0) {  // ✅ Minor: Explicit default to []
     errors.selected = "Please select at least one service.";
   }
 
@@ -41,7 +42,7 @@ const defaultServices = [
   "Rimming",
 ];
 
-export function StepServices({ data, update,  }) {
+export function StepServices({ data, update }) {
   const [services, setServices] = useState(defaultServices);
   const [customService, setCustomService] = useState("");
 
@@ -80,7 +81,8 @@ export function StepServices({ data, update,  }) {
       {/* Services Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {services.map((service, index) => {
-          const isSelected = data.selected?.includes(service);
+          // ✅ Fix: Always default to [] so isSelected is boolean (false if undefined)
+          const isSelected = (data.selected || []).includes(service);
           return (
             <motion.label
               key={index}

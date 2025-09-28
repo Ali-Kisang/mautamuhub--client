@@ -8,19 +8,44 @@ const CLOUD_NAME = "dcxggvejn";
 const optimizeImage = (publicId) =>
   `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/f_auto,q_auto,w_300,h_300,c_fill/${publicId}`;
 
+// ✅ Validation function - moved outside and exported
+export const validatePhotos = (photos = [], accountType = {}) => {
+  const errors = {};
+
+  let photoLimit = 0;
+  switch (accountType?.type) {
+    case "Spa": photoLimit = 10; break;
+    case "VVIP": photoLimit = 8; break;
+    case "VIP": photoLimit = 6; break;
+    case "Regular": photoLimit = 4; break;
+    default: photoLimit = 0;
+  }
+
+  if (photos.length === 0) {
+    errors.photos = "Please upload at least one photo.";
+  } else if (photos.length > photoLimit) {
+    errors.photos = `You can only upload up to ${photoLimit} photos.`;
+  }
+
+  return errors;
+};
+
 const StepPhotos = ({ data, updateData, accountType }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [loading, setLoading] = useState(false);  // ✅ loading state
 
-  const photoLimit = (() => {
-    switch (accountType?.type) {
+  // ✅ Compute photo limit
+  const getPhotoLimit = (accType) => {
+    switch (accType?.type) {
       case "Spa": return 10;
       case "VVIP": return 8;
       case "VIP": return 6;
       case "Regular": return 4;
       default: return 0;
     }
-  })();
+  };
+
+  const photoLimit = getPhotoLimit(accountType);
 
   const galleryPhotos = data || [];
   const progress = photoLimit > 0 ? (galleryPhotos.length / photoLimit) * 100 : 0;
@@ -76,28 +101,33 @@ const StepPhotos = ({ data, updateData, accountType }) => {
   const removePhoto = async (index) => {
     const photoToRemove = galleryPhotos[index];
 
-    try {
-      setLoading(true); // ✅ show loader before API call
+    let updatedPhotos;
+    if (typeof photoToRemove === "string") {
+      try {
+        setLoading(true); // ✅ show loader before API call
 
-      if (typeof photoToRemove === "string") {
         await api.delete(`/users/profile/photos/${encodeURIComponent(photoToRemove)}`);
-        showToast("Photo removed successfully.");
+      } catch (error) {
+        console.error("Failed to delete photo:", error);
+        showToast("Failed to remove photo. Please try again.", true);
+        return;
+      } finally {
+        setLoading(false); // ✅ hide loader after API call
       }
 
-      const updatedPhotos = galleryPhotos.filter((_, i) => i !== index);
+      // If successful, update
+      updatedPhotos = galleryPhotos.filter((_, i) => i !== index);
       updateData(updatedPhotos);
-
-      if (photoToRemove instanceof File) {
-        const preview = galleryPreviews[index];
-        if (preview?.isFile) {
-          URL.revokeObjectURL(preview.url);
-        }
+      showToast("Photo removed successfully.");
+    } else {
+      // Local file removal
+      updatedPhotos = galleryPhotos.filter((_, i) => i !== index);
+      const preview = galleryPreviews[index];
+      if (preview?.isFile) {
+        URL.revokeObjectURL(preview.url);
       }
-    } catch (error) {
-      console.error("Failed to delete photo:", error);
-      showToast("Failed to remove photo. Please try again.", true);
-    } finally {
-      setLoading(false); // ✅ hide loader after API call
+      updateData(updatedPhotos);
+      showToast("Photo removed successfully.");
     }
   };
 
