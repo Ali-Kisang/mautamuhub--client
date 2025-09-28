@@ -69,6 +69,7 @@ import RefundPolicy from "./constants/components/RefundPolicy";
 import PaymentMethods from "./constants/components/PaymentMethods";
 import { useEffect } from "react";
 import Loader from "./pages/Loader";
+import EditProfile from "./pages/EditProfile";
 
  function PrivateRoute({ children }) {
   const { user } = useAuthStore();
@@ -107,7 +108,7 @@ export default function App() {
         <Route path="/users" element={<UsersList />} />
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
-        {/*<Route path="/profile" element={<ProfileSetup />} /> }*/}
+        <Route path="/edit-profile" element={<EditProfile />} />
         <Route
   path="/profile"
   element={

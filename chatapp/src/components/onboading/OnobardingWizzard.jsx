@@ -21,6 +21,10 @@ export default function OnBoarding() {
     totalSteps,
   } = useOnboardingStore();
 
+  // ✅ Extract userId from localStorage (same as in handleSubmit)
+  const authUser = JSON.parse(localStorage.getItem("user"));
+  const userId = authUser?._id;  // Assuming _id is the MongoDB ID; adjust if different (e.g., id)
+
   const validateStep = () => {
   let errors = {};
   switch (step) {
@@ -65,65 +69,73 @@ export default function OnBoarding() {
   };
 
   // ✅ Submit to backend
-  const handleSubmit = async () => {
-    try {
-      const fd = new FormData();
+  // ✅ Submit to backend
+const handleSubmit = async () => {
+  try {
+    const fd = new FormData();
 
-      // personal
-      Object.entries(formData.personal || {}).forEach(([key, value]) => {
-        fd.append(`personal[${key}]`, value);
-      });
-
-      // location
-      Object.entries(formData.location || {}).forEach(([key, value]) => {
-        fd.append(`location[${key}]`, value);
-      });
-
-      // additional
-      Object.entries(formData.additional || {}).forEach(([key, value]) => {
-        fd.append(`additional[${key}]`, value);
-      });
-
-      // services
-      if (Array.isArray(formData.services?.selected)) {
-        formData.services.selected.forEach((s, i) =>
-          fd.append(`services[selected][${i}]`, s)
-        );
-      }
-      if (formData.services?.custom) {
-        fd.append("services[custom]", formData.services.custom);
-      }
-
-      // accountType
-      Object.entries(formData.accountType || {}).forEach(([key, value]) => {
-        fd.append(`accountType[${key}]`, value);
-      });
-
-      // photos
-      if (Array.isArray(formData.photos)) {
-        formData.photos.forEach((photo) => {
-          if (photo instanceof File) {
-            fd.append("photos", photo);
-          }
-        });
-      }
-
-      // send request
-      const token = localStorage.getItem("token");
-      const res = await axios.put("http://localhost:5000/api/users/profile", fd, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      console.log("✅ Profile submitted successfully", res.data);
-      alert("Profile submitted successfully!");
-    } catch (err) {
-      console.error("❌ Error submitting profile:", err);
-      alert("Error submitting profile");
+    // ensure username comes from authUser
+    const authUser = JSON.parse(localStorage.getItem("user")); // or from your store
+    if (authUser?.username) {
+      fd.append("personal[username]", authUser.username);
     }
-  };
+
+    // personal
+    Object.entries(formData.personal || {}).forEach(([key, value]) => {
+      fd.append(`personal[${key}]`, value);
+    });
+
+    // location
+    Object.entries(formData.location || {}).forEach(([key, value]) => {
+      fd.append(`location[${key}]`, value);
+    });
+
+    // additional
+    Object.entries(formData.additional || {}).forEach(([key, value]) => {
+      fd.append(`additional[${key}]`, value);
+    });
+
+    // services
+    if (Array.isArray(formData.services?.selected)) {
+      formData.services.selected.forEach((s, i) =>
+        fd.append(`services[selected][${i}]`, s)
+      );
+    }
+    if (formData.services?.custom) {
+      fd.append("services[custom]", formData.services.custom);
+    }
+
+    // accountType
+    Object.entries(formData.accountType || {}).forEach(([key, value]) => {
+      fd.append(`accountType[${key}]`, value);
+    });
+
+    // photos
+    if (Array.isArray(formData.photos)) {
+      formData.photos.forEach((photo) => {
+        if (photo instanceof File) {
+          fd.append("photos", photo);
+        }
+      });
+    } 
+
+    // send request
+    const token = localStorage.getItem("token");
+    const res = await axios.put("http://localhost:5000/api/users/profile", fd, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    console.log("✅ Profile submitted successfully", res.data);
+    alert("Profile submitted successfully!");
+  } catch (err) {
+    console.error("❌ Error submitting profile:", err);
+    alert("Error submitting profile");
+  }
+};
+
 
   // ✅ Steps array
   const steps = [
@@ -184,6 +196,7 @@ export default function OnBoarding() {
     setValidationErrors(validatePhotos(photos, formData.accountType));
   }}
   accountType={formData.accountType}
+  userId={userId}  
 />
 ,
     <StepReview key="review" formData={formData} />,
