@@ -342,8 +342,16 @@ export default function Chat() {
   // ✅ Helper: Check if user has reacted to this emoji on message
   const hasReaction = (messageId, emoji) => {
     const msg = messages.find(m => m._id === messageId);
-    return msg?.reactions?.some(r => r.emoji === emoji && r.userId.toString() === user._id.toString());
+    return msg?.reactions?.some(r => r.emoji === emoji && (r.userId?._id?.toString() || r.userId?.toString()) === user._id.toString());
   };
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <span className="text-gray-500">Loading...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 mt-16">
@@ -364,9 +372,10 @@ export default function Chat() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 relative">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col relative">
         {messages.map((m) => {
-          const isMine = m.senderId.toString() === user._id.toString();
+          const senderIdStr = m.senderId?._id?.toString() || m.senderId?.toString();
+          const isMine = senderIdStr === user._id.toString();
           return (
             <div
               key={m._id}
@@ -378,21 +387,21 @@ export default function Chat() {
             >
               {m.deleted ? (
                 <p className="italic flex items-center space-x-1">
-                  <Trash2 className="text-gray-800" />
-                  <span>This message was deleted</span>
+                  <Trash2 className={`text-${isMine ? 'gray-300' : 'gray-800'}`} size={14} />
+                  <span className={`text-${isMine ? 'gray-300' : 'gray-600'}`}>This message was deleted</span>
                 </p>
               ) : (
                 <>
                   <p>{m.message}</p>
                   {m.edited && (
-                    <span className="text-[10px] italic opacity-70">
+                    <span className={`text-[10px] italic opacity-70 ${isMine ? 'text-gray-200' : 'text-gray-500'}`}>
                       (edited)
                     </span>
                   )}
                 </>
               )}
 
-              <p className="text-[10px] mt-1 opacity-60 flex items-center space-x-1">
+              <p className={`text-[10px] mt-1 opacity-60 flex items-center space-x-1 ${isMine ? 'text-gray-200' : 'text-gray-500'}`}>
                 <span>{moment(m.createdAt).fromNow()}</span>
                 {isMine && !m.deleted && (
                   <>
@@ -432,7 +441,7 @@ export default function Chat() {
 
               {/* ✅ Quick Emoji Buttons */}
               {!m.deleted && (
-                <div className="flex items-center gap-1 mt-1">
+                <div className={`flex items-center gap-1 mt-1 ${isMine ? 'text-white' : 'text-gray-600'}`}>
                   {['❤️', '👍', '😂', '😮', '😢'].map(emoji => (
                     <button
                       key={emoji}
@@ -444,7 +453,7 @@ export default function Chat() {
                         }
                       }}
                       className={`text-lg transition-colors ${
-                        hasReaction(m._id, emoji) ? 'text-pink-500' : 'text-gray-400 hover:text-gray-600'
+                        hasReaction(m._id, emoji) ? 'text-pink-300' : isMine ? 'text-gray-300 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'
                       }`}
                     >
                       {emoji}
@@ -452,7 +461,7 @@ export default function Chat() {
                   ))}
                   <button
                     onClick={() => setShowPickerFor(showPickerFor === m._id ? null : m._id)}
-                    className="ml-2 text-gray-400 hover:text-gray-600 text-sm"
+                    className={`ml-2 text-sm ${isMine ? 'text-gray-300 hover:text-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
                   >
                     +{showPickerFor === m._id ? ' Hide' : ''}
                   </button>
@@ -461,14 +470,14 @@ export default function Chat() {
 
               {/* ✅ Render Reactions */}
               {!m.deleted && (m.reactions || []).length > 0 && (
-                <div className="flex gap-1 mt-1">
+                <div className={`flex gap-1 mt-1 ${isMine ? 'bg-white/10 rounded' : 'bg-gray-200 rounded'}`}>
                   {Object.entries(
                     (m.reactions || []).reduce((acc, r) => {
                       acc[r.emoji] = (acc[r.emoji] || 0) + 1;
                       return acc;
                     }, {})
                   ).map(([emoji, count]) => (
-                    <span key={emoji} className="text-xs bg-gray-200 px-1 py-0.5 rounded flex items-center gap-1">
+                    <span key={emoji} className={`text-xs px-1 py-0.5 flex items-center gap-1 ${isMine ? 'bg-white/20 text-white' : 'bg-white text-gray-700'}`}>
                       {emoji} {count}
                     </span>
                   ))}
