@@ -11,7 +11,7 @@ import Loader from "../pages/Loader";
 
 export default function NavBar() {
   const { user, logout, loading: authLoading } = useAuthStore();
-  const { totalUnread, setUnreadCounts } = useChatStore(); // ✅ Use store
+  const { unreadCounts, setUnreadCounts, getTotalUnread } = useChatStore(); 
   const nav = useNavigate();
 
   // UI state
@@ -26,6 +26,9 @@ export default function NavBar() {
   const overlayRef = useRef(null);
   const inputRef = useRef(null);
   const listRef = useRef(null);
+
+  // Computed unread badge
+  const totalUnread = getTotalUnread(); // ✅ Call getter for dynamic total
 
   // Cloudinary
   const CLOUD_NAME = "dcxggvejn"; 
@@ -78,7 +81,7 @@ export default function NavBar() {
       console.error("Error fetching suggestions:", err);
       setSuggestions([]);
     } finally {
-            setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -98,7 +101,7 @@ export default function NavBar() {
   // ✅ Fetch initial unread on user load (sets store)
   useEffect(() => {
     if (!user) {
-      setUnreadCounts({}); // Clear on logout
+      setUnreadCounts({}); 
       return;
     }
 
@@ -206,94 +209,91 @@ export default function NavBar() {
     setOpen(false);
   };
 
- 
-
   return (
     <>
-      <nav className="bg-white shadow-md sticky top-0 left-0 w-full  z-50">
+      <nav className="bg-white shadow-md sticky top-0 left-0 w-full z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-18 ">
+          <div className="flex justify-between items-center h-18">
             {/* Logo */}
             <div className="flex items-center gap-4">
-  <Link to="/">
-    <img
-      src={mautamuLogo}
-      alt="Mautamuhub Logo"
-      className="h-20 sm:h-40 md:h-48 lg:h-64 w-auto object-contain"
-    />
-  </Link>
-</div>
+              <Link to="/">
+                <img
+                  src={mautamuLogo}
+                  alt="Mautamuhub Logo"
+                  className="h-20 sm:h-40 md:h-48 lg:h-64 w-auto object-contain"
+                />
+              </Link>
+            </div>
 
-      {/* Desktop Menu */}
-<div className="hidden md:flex space-x-8 items-center text-lg lg:text-xl font-medium">
-  {user && (
-    <>
-    <span className="text-md text-pink-500 italic font-medium">
-        Hi, {user.username || "User"}
-      </span>
-      <Link
-        to="/profile"
-        className="text-pink-600 hover:text-pink-700 transition-colors duration-200"
-      >
-        Profile
-      </Link>
+            {/* Desktop Menu */}
+            <div className="hidden md:flex space-x-8 items-center text-lg lg:text-xl font-medium">
+              {user && (
+                <>
+                  <span className="text-md text-pink-500 italic font-medium">
+                    Hi, {user.username || "User"}
+                  </span>
+                  <Link
+                    to="/profile"
+                    className="text-pink-600 hover:text-pink-700 transition-colors duration-200"
+                  >
+                    Profile
+                  </Link>
 
-      <Link
-        to="/profile"
-        className="relative text-pink-600 hover:text-pink-700 transition-colors duration-200 flex items-center"
-        title="Messenger"
-      >
-        <MessageCircle size={28} strokeWidth={2.5} />
-        {totalUnread > 0 && (
-          <span className="absolute -top-1 -right-2 bg-pink-700 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-md animate-pulse">
-            {totalUnread}
-          </span>
-        )}
-      </Link>
+                  <Link
+                    to="/profile"
+                    className="relative text-pink-600 hover:text-pink-700 transition-colors duration-200 flex items-center"
+                    title="Messenger"
+                  >
+                    <MessageCircle size={28} strokeWidth={2.5} />
+                    {totalUnread > 0 && (
+                      <span className="absolute -top-1 -right-2 bg-pink-700 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-md animate-pulse">
+                        {totalUnread}
+                      </span>
+                    )}
+                  </Link>
 
-      <Link
-        to="/create-account"
-        className="text-pink-600 hover:text-pink-700 transition-colors duration-200"
-      >
-        Create Account
-      </Link>
-    </>
-  )}
+                  <Link
+                    to="/create-account"
+                    className="text-pink-600 hover:text-pink-700 transition-colors duration-200"
+                  >
+                    Create Account
+                  </Link>
+                </>
+              )}
 
-  {/* Search Icon - Always Visible */}
-  <button
-    onClick={() => {
-      setSearchOpen(true);
-      setTimeout(() => inputRef.current?.focus(), 0);
-    }}
-    className="text-pink-600 hover:text-pink-700 transition-colors duration-200"
-    title="Search"
-  >
-    <Search size={26} strokeWidth={2.5} />
-  </button>
+              {/* Search Icon - Always Visible */}
+              <button
+                onClick={() => {
+                  setSearchOpen(true);
+                  setTimeout(() => inputRef.current?.focus(), 0);
+                }}
+                className="text-pink-600 hover:text-pink-700 transition-colors duration-200"
+                title="Search"
+              >
+                <Search size={26} strokeWidth={2.5} />
+              </button>
 
-  {/* Login / Logout / Loader */}
-  {authLoading ? (
-    <div className="px-4 py-2">
-      <Loader text="" size={20} color="text-pink-600" />
-    </div>
-  ) : !user ? (
-    <Link
-      to="/login"
-      className="px-4 py-2 bg-pink-600 text-white rounded-xl hover:bg-pink-700 transition-colors duration-200 hover:cursor-pointer"
-    >
-      Login
-    </Link>
-  ) : (
-    <button
-      onClick={handleLogout}
-      className="px-4 py-2 bg-pink-600 text-white rounded-xl hover:bg-pink-700 transition-colors duration-200 hover:cursor-pointer"
-    >
-      Logout
-    </button>
-  )}
-</div>
-
+              {/* Login / Logout / Loader */}
+              {authLoading ? (
+                <div className="px-4 py-2">
+                  <Loader text="" size={20} color="text-pink-600" />
+                </div>
+              ) : !user ? (
+                <Link
+                  to="/login"
+                  className="px-4 py-2 bg-pink-600 text-white rounded-xl hover:bg-pink-700 transition-colors duration-200 hover:cursor-pointer"
+                >
+                  Login
+                </Link>
+              ) : (
+                <button
+                  onClick={handleLogout}
+                  className="px-4 py-2 bg-pink-600 text-white rounded-xl hover:bg-pink-700 transition-colors duration-200 hover:cursor-pointer"
+                >
+                  Logout
+                </button>
+              )}
+            </div>
 
             {/* Mobile Menu Button */}
             <div className="md:hidden flex items-center space-x-3">

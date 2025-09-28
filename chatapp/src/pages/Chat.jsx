@@ -6,8 +6,10 @@ import { useChatStore } from "../store/useChatStore";
 import { socket } from "../utils/socket";
 import moment from "moment";
 import { Check, CheckCheck, Send, Trash2, Bell } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from "react-hot-toast";
 import { MessageCircle } from "lucide-react";
+import EmojiPicker from 'emoji-picker-react'; 
+import { showToast } from "../components/utils/showToast";
 
 export default function Chat() {
   const { id: receiverId } = useParams();
@@ -20,6 +22,7 @@ export default function Chat() {
   const [text, setText] = useState("");
   const [typingUser, setTypingUser] = useState(null);
   const [receiverName, setReceiverName] = useState("User");
+  const [showPickerFor, setShowPickerFor] = useState(null); // ✅ New: For emoji picker per message
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
   const typingTimeoutRef = useRef(null);
@@ -74,7 +77,7 @@ export default function Chat() {
         });
 
         playNotificationSound();
-        toast.success(`${receiverName}: ${msg.message}`, {
+        showToast(`${receiverName}: ${msg.message}`, {
           icon: <MessageCircle size={22} />,
           duration: 4000,
           style: {
@@ -82,7 +85,8 @@ export default function Chat() {
             color: "#333",
             fontSize: "14px",
           },
-        });
+          
+        }, false);
       }
     });
 
@@ -116,6 +120,32 @@ export default function Chat() {
       );
     });
 
+    // ✅ New: Reaction sockets
+    socket.on("reactionAdded", ({ messageId, emoji, userId }) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m._id === messageId
+            ? { ...m, reactions: [...(m.reactions || []), { emoji, userId }] }
+            : m
+        )
+      );
+    });
+
+    socket.on("reactionRemoved", ({ messageId, emoji, userId }) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m._id === messageId
+            ? {
+                ...m,
+                reactions: (m.reactions || []).filter(
+                  (r) => !(r.emoji === emoji && r.userId.toString() === userId.toString())
+                ),
+              }
+            : m
+        )
+      );
+    });
+
     // Initial fetch + mark read
     (async () => {
       try {
@@ -130,10 +160,10 @@ export default function Chat() {
         // From push? Extra flair
         if (isFromPush) {
           playNotificationSound();
-          toast.success("Opened from notification – caught up! 🔔", {
+          showToast("Opened from notification – caught up! 🔔", {
             icon: <Bell size={22} />,
             duration: 3000,
-          });
+          }, false);
         }
       } catch (err) {
         console.error("Fetch messages error:", err);
@@ -144,12 +174,10 @@ export default function Chat() {
     const handleMessageFromSW = (event) => {
       if (event.data.type === 'PUSH_RECEIVED' && event.data.data.senderId === receiverId) {
         playNotificationSound();
-        toast.success(`New message from ${receiverName}! (Push sync)`, {
+        showToast(`New message from ${receiverName}! (Push sync)`, {
           icon: <MessageCircle size={22} />,
           duration: 4000,
-        });
-        // FIXED: Don't increment unread here if chat is open (in-app, will mark read soon)
-        // Rely on backend aggregate for accuracy
+        }, false);
       }
     };
     navigator.serviceWorker.addEventListener('message', handleMessageFromSW);
@@ -164,6 +192,8 @@ export default function Chat() {
       socket.off("stopTyping");
       socket.off("messageSeen");
       socket.off("messageDelivered");
+      socket.off("reactionAdded");
+      socket.off("reactionRemoved");
       navigator.serviceWorker.removeEventListener('message', handleMessageFromSW);
       setActiveChat(null);
     };
@@ -190,8 +220,8 @@ export default function Chat() {
         setEditingMessage(null);
         setText("");
       } catch (err) {
-        console.error("Edit failed:", err);
-        toast.error("Failed to edit message");
+       
+        showToast("Failed to edit message", true);
       }
       return;
     }
@@ -205,7 +235,7 @@ export default function Chat() {
         headers: { "Content-Type": "multipart/form-data" },
       });
       // FIXED: Optimistic add with initial "sent" status
-      const optimisticMsg = { ...res.data, status: "sent" };
+      const optimisticMsg = { ...res.data, status: "sent", reactions: [] };
       setMessages((prev) => [...prev, optimisticMsg]);
       console.log("Sent message added:", res.data._id); // Debug log
 
@@ -218,9 +248,27 @@ export default function Chat() {
       socket.emit("stopTyping", { senderId: user._id, receiverId });
     } catch (err) {
       console.error("Send failed:", err);
-      toast.error("Failed to send message");
+      showToast("Failed to send message", true);
       // Rollback optimistic if failed (optional)
       setMessages((prev) => prev.slice(0, -1));
+    }
+  };
+
+  // ✅ New: Reaction handlers
+  const addReaction = async (messageId, emoji) => {
+    try {
+      await api.post("/chat/react", { messageId, emoji });
+      setShowPickerFor(null);
+    } catch (err) {
+      showToast("Failed to add reaction", true);
+    }
+  };
+
+  const removeReaction = async (messageId, emoji) => {
+    try {
+      await api.delete("/chat/react", { data: { messageId, emoji } });
+    } catch (err) {
+      showToast("Failed to remove reaction", true);
     }
   };
 
@@ -246,12 +294,13 @@ export default function Chat() {
                     prev.map((m) =>
                       m._id === id ? { ...m, deleted: true } : m
                     )
+                    
                   );
                   toast.dismiss(t.id);
-                  toast.success("Message deleted");
+                  showToast("Message deleted successfully", false);
                 } catch (err) {
                   console.error("Delete failed:", err);
-                  toast.error("Failed to delete message");
+                  showToast("Failed to delete message", true);
                 }
               }}
             >
@@ -290,6 +339,12 @@ export default function Chat() {
   // Get unread for this receiver (for header badge)
   const unreadForReceiver = unreadCounts[receiverId] || 0;
 
+  // ✅ Helper: Check if user has reacted to this emoji on message
+  const hasReaction = (messageId, emoji) => {
+    const msg = messages.find(m => m._id === messageId);
+    return msg?.reactions?.some(r => r.emoji === emoji && r.userId.toString() === user._id.toString());
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-50 mt-16">
       <div className="p-4 bg-pink-600 text-white font-semibold text-lg shadow flex items-center justify-between">
@@ -309,7 +364,7 @@ export default function Chat() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 relative">
         {messages.map((m) => {
           const isMine = m.senderId.toString() === user._id.toString();
           return (
@@ -372,6 +427,61 @@ export default function Chat() {
                   >
                     Delete
                   </button>
+                </div>
+              )}
+
+              {/* ✅ Quick Emoji Buttons */}
+              {!m.deleted && (
+                <div className="flex items-center gap-1 mt-1">
+                  {['❤️', '👍', '😂', '😮', '😢'].map(emoji => (
+                    <button
+                      key={emoji}
+                      onClick={() => {
+                        if (hasReaction(m._id, emoji)) {
+                          removeReaction(m._id, emoji);
+                        } else {
+                          addReaction(m._id, emoji);
+                        }
+                      }}
+                      className={`text-lg transition-colors ${
+                        hasReaction(m._id, emoji) ? 'text-pink-500' : 'text-gray-400 hover:text-gray-600'
+                      }`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setShowPickerFor(showPickerFor === m._id ? null : m._id)}
+                    className="ml-2 text-gray-400 hover:text-gray-600 text-sm"
+                  >
+                    +{showPickerFor === m._id ? ' Hide' : ''}
+                  </button>
+                </div>
+              )}
+
+              {/* ✅ Render Reactions */}
+              {!m.deleted && (m.reactions || []).length > 0 && (
+                <div className="flex gap-1 mt-1">
+                  {Object.entries(
+                    (m.reactions || []).reduce((acc, r) => {
+                      acc[r.emoji] = (acc[r.emoji] || 0) + 1;
+                      return acc;
+                    }, {})
+                  ).map(([emoji, count]) => (
+                    <span key={emoji} className="text-xs bg-gray-200 px-1 py-0.5 rounded flex items-center gap-1">
+                      {emoji} {count}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* ✅ Emoji Picker (if open for this message) */}
+              {showPickerFor === m._id && (
+                <div className="absolute z-10 bottom-full right-0 mb-2">
+                  <EmojiPicker
+                    onEmojiClick={(emojiData) => addReaction(m._id, emojiData.emoji)}
+                    height={300}
+                  />
                 </div>
               )}
             </div>

@@ -1,3 +1,4 @@
+// src/store/useChatStore.js
 import { create } from "zustand";
 import api from "../utils/axiosInstance"; // For fetch
 
@@ -6,6 +7,9 @@ export const useChatStore = create((set, get) => ({
   unreadCounts: {},
 
   setActiveChat: (chatId) => set({ activeChat: chatId }),
+
+  // ✅ Added: Direct setter for unread counts (used in NavBar)
+  setUnreadCounts: (counts) => set({ unreadCounts: counts || {} }),
 
   incrementUnread: (senderId, increment = 1) =>
     set((state) => ({
@@ -29,21 +33,22 @@ export const useChatStore = create((set, get) => ({
   fetchUnreadCounts: async () => {
     try {
       const { data } = await api.get("/chat/unread-by-user");
-      set({ unreadCounts: data.reduce((acc, { _id: id, count }) => ({ ...acc, [id]: count }), {}) });
+      const counts = data.reduce((acc, { _id: id, count }) => ({ ...acc, [id]: count }), {});
+      get().setUnreadCounts(counts); // Use the new setter internally
     } catch (err) {
       console.error("Fetch unread failed:", err);
     }
   },
 
-  getTotalUnread: () => Object.values(get().unreadCounts).reduce((sum, count) => sum + count, 0),
+  getTotalUnread: () => Object.values(get().unreadCounts).reduce((sum, count) => sum + (Number(count) || 0), 0),
 
   // ✅ New: Fetch recent convos (for Messenger list)
   fetchRecentConversations: async () => {
     try {
       const { data } = await api.get("/chat/recent");
       // Sync unreads from convos
-      const updatedCounts = data.reduce((acc, convo) => ({ ...acc, [convo.userId]: convo.unreadCount }), {});
-      set({ unreadCounts: updatedCounts });
+      const updatedCounts = data.reduce((acc, convo) => ({ ...acc, [convo.userId]: convo.unreadCount || 0 }), {});
+      get().setUnreadCounts(updatedCounts); // Use the new setter
     } catch (err) {
       console.error("Fetch recent failed:", err);
     }

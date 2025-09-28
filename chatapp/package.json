@@ -23,6 +23,7 @@
     "axios": "^1.10.0",
     "cloudinary-react": "^1.8.1",
     "daisyui": "^5.0.47",
+    "emoji-picker-react": "^4.13.3",
     "firebase": "^12.0.0",
     "framer-motion": "^12.23.6",
     "ldrs": "^1.1.7",
