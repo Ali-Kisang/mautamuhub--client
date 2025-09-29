@@ -1,18 +1,29 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { Cloudinary } from "@cloudinary/url-gen";
+import { AdvancedImage } from "@cloudinary/react";
+import { auto } from "@cloudinary/url-gen/actions/resize";
+import { autoGravity } from "@cloudinary/url-gen/qualifiers/gravity";
 import api from "../utils/axiosInstance";
 import { useAuthStore } from "../store/useAuthStore";
 import ProfileLayout from "./ProfileLayout";
 import { DotStream } from "ldrs/react";
 
 // Lucide icons
-import { User, MapPin, Phone, Heart, DollarSign, Camera, PlusCircle, AlertTriangle, Edit2, Crown, ArrowUpRight } from "lucide-react";
+import { User, MapPin, Phone, Heart, DollarSign, Camera, PlusCircle, AlertTriangle, Edit2, ArrowUpRight } from "lucide-react";
+// Material Design icon
+import { MdVerified } from "react-icons/md";
+import { Crown } from "lucide-react";
 
 export default function ProfilePage() {
   const { user } = useAuthStore();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const cld = new Cloudinary({
+    cloud: { cloudName: "dcxggvejn" },
+  });
 
   useEffect(() => {
     const fetchProfileStatus = async () => {
@@ -43,11 +54,6 @@ export default function ProfilePage() {
   const getAvatarUrl = (avatar) => {
     if (!avatar) return "/default-avatar.png";
     return `https://res.cloudinary.com/dcxggvejn/image/upload/${avatar}`;
-  };
-
-  const getPhotoUrl = (publicId) => {
-    if (!publicId) return "/default-placeholder.png"; // Add a default image if needed
-    return `https://res.cloudinary.com/dcxggvejn/image/upload/${publicId}`;
   };
 
   const isVerified = profile?.accountType?.type === "VVIP" || profile?.accountType?.type === "Spa";
@@ -124,12 +130,28 @@ export default function ProfilePage() {
           {/* Banner */}
           <div className="bg-gradient-to-r from-pink-200 to-pink-500 h-48 relative">
             <div className="absolute -bottom-20 left-1/2 transform -translate-x-1/2 flex flex-col items-center">
-              <img
-                src={getPhotoUrl(profile.photos?.[0])}
-                alt={`${profile.personal?.username}'s profile photo`}
-                className="w-36 h-36 rounded-full border-4 border-pink-500 shadow-lg object-cover hover:scale-105 transition-transform duration-200"
-                loading="lazy"
-              />
+              <div className="relative">
+                {profile.photos && profile.photos.length > 0 ? (
+                  <>
+                    <AdvancedImage
+                      cldImg={cld
+                        .image(profile.photos[0])
+                        .resize(auto().gravity(autoGravity()))}
+                      className="w-36 h-36 rounded-full border-4 border-pink-500 shadow-lg object-cover hover:scale-105 transition-transform duration-200"
+                      alt={`${profile.personal?.username}'s profile photo`}
+                    />
+                    {isVerified && (
+                      <div className="absolute top-3 left-3">
+                        <MdVerified className="text-pink-500 text-xl" />
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="w-36 h-36 rounded-full border-4 border-pink-500 shadow-lg bg-gray-200 flex items-center justify-center">
+                    No Photo
+                  </div>
+                )}
+              </div>
               <h1 className="mt-6 text-2xl md:text-3xl font-bold text-gray-800 text-center">
                 {profile.personal?.username}
               </h1>
@@ -164,7 +186,7 @@ export default function ProfilePage() {
               </h2>
               <div className="flex items-center justify-center gap-4">
                 <span className={`px-4 py-2 rounded-full border font-semibold flex items-center gap-2 ${getAccountBadgeClass(accountType)}`}>
-                  {isVerified && <Crown className="w-4 h-4" />}
+                  {isVerified && <MdVerified className="w-4 h-4 text-pink-500" />}
                   {accountType} Account
                   {durationLeft && <span className="text-xs ml-1">({durationLeft} days left)</span>}
                 </span>
@@ -266,11 +288,12 @@ export default function ProfilePage() {
                       key={i}
                       className="relative overflow-hidden rounded-lg shadow aspect-square bg-gray-100"
                     >
-                      <img
-                        src={getPhotoUrl(publicId)}
-                        alt={`${profile.personal?.username}'s photo ${i + 1}`}
+                      <AdvancedImage
+                        cldImg={cld
+                          .image(publicId)
+                          .resize(auto().gravity(autoGravity()))}
                         className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
-                        loading="lazy"
+                        alt={`${profile.personal?.username}'s photo ${i + 1}`}
                       />
                     </div>
                   ))}

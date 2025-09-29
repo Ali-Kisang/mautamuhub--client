@@ -3,6 +3,7 @@ import { Cloudinary } from "@cloudinary/url-gen";
 import { AdvancedImage } from "@cloudinary/react";
 import { auto } from "@cloudinary/url-gen/actions/resize";
 import { autoGravity } from "@cloudinary/url-gen/qualifiers/gravity";
+import { MdVerified } from "react-icons/md";
 import { useAuthStore } from "../../store/useAuthStore";
 
 const VIPListByCounty = ({ vipAccountsByCounty }) => {
@@ -13,15 +14,96 @@ const VIPListByCounty = ({ vipAccountsByCounty }) => {
   // ✅ get online users from store
   const { onlineUsers } = useAuthStore();
 
+  // Array of at least 50 random captivating summaries for VIP escorts.
+  const summaryTemplates = [
+    "Encounter elegance with {name}, a captivating {age}-year-old {orientation} in {location}.",
+    "Savor sophistication at {name}—your {age}-year {orientation} allure in {location}.",
+    "Delight in desire with {name}, the {age}-year essence of {orientation} in {location}.",
+    "Ignite intrigue with {name}, a sultry {age}-year {orientation} from {location}.",
+    "Embrace enchantment at {name}—{age} years of {orientation} grace in {location}.",
+    "Unveil your ultimate fantasy with {name}, {age} years of {orientation} perfection in {location}.",
+    "Bask in the glow of {name}, a radiant {age}-year {orientation} star in {location}.",
+    "Experience exquisite company with {name}—{age} years crafting {orientation} moments in {location}.",
+    "Awaken adventure with {name}, your {age}-year {orientation} companion in {location}.",
+    "Lose yourself in luxury with {name}, the {age}-year pinnacle of {orientation} in {location}.",
+    "Tease the night with {name}, a fiery {age}-year {orientation} spark from {location}.",
+    "Discover divine delight at {name}—{age} years of {orientation} divinity in {location}.",
+    "Float into fascination with {name}, your {age}-year {orientation} fantasy in {location}.",
+    "Fuel the fire with {name}, a bold {age}-year {orientation} beacon in {location}.",
+    "Savor the seduction with {name}—{age} years of {orientation} sensuality in {location}.",
+    "Mingle in mystery with {name}, the {age}-year whisper of {orientation} in {location}.",
+    "Pursue passion with {name}, a vibrant {age}-year {orientation} vibe from {location}.",
+    "Radiate rapture at {name}—{age} years of {orientation} radiance in {location}.",
+    "Stir the senses with {name}, your {age}-year {orientation} siren in {location}.",
+    "Tantalize tonight with {name}, a smooth {age}-year {orientation} seduction in {location}.",
+    "Unleash uniqueness with {name}—{age} years weaving {orientation} wonders in {location}.",
+    "Venture vibrantly with {name}, {age} years of {orientation} vitality in {location}.",
+    "Whisper wonders with {name}, the {age}-year {orientation} whisperer in {location}.",
+    "Yield to yearning at {name}—{age} years yielding {orientation} yields in {location}.",
+    "Zest for zest with {name}, a {age}-year {orientation} zinger from {location}.",
+    "Allure awaits at {name}, {age} years of {orientation} allure in {location}.",
+    "Bliss beckons with {name}—{age} years beckoning {orientation} bliss in {location}.",
+    "Charm cascades at {name}, your {age}-year {orientation} cascade in {location}.",
+    "Dare to dream with {name}, {age} years dreaming {orientation} dares in {location}.",
+    "Enthrall endlessly with {name}—{age} years enthralling {orientation} in {location}.",
+    "Fascinate forever at {name}, a {age}-year {orientation} fascination in {location}.",
+    "Glimpse glamour with {name}, {age} years of {orientation} glamour in {location}.",
+    "Hypnotize here with {name}—{age} years hypnotizing {orientation} in {location}.",
+    "Intrigue ignites at {name}, your {age}-year {orientation} ignition from {location}.",
+    "Jewel of joy with {name}, {age} years joying {orientation} jewels in {location}.",
+    "Kindle kinship at {name}—{age} years kindling {orientation} kinship in {location}.",
+    "Lure luxuriously with {name}, a {age}-year {orientation} lure in {location}.",
+    "Mystify moments with {name}, {age} years mystifying {orientation} in {location}.",
+    "Nurture nights at {name}—{age} years nurturing {orientation} nights in {location}.",
+    "Overture of obsession with {name}, your {age}-year {orientation} overture from {location}.",
+    "Pulse with passion at {name}, {age} years pulsing {orientation} in {location}.",
+    "Quest for queenly with {name}—{age} years queening {orientation} quests in {location}.",
+    "Rhythm of rapture with {name}, a {age}-year {orientation} rhythm in {location}.",
+    "Symphony of seduction at {name}, {age} years symphonizing {orientation} in {location}.",
+    "Tide of temptation with {name}—{age} years tiding {orientation} temptations in {location}.",
+    "Unwind uniquely with {name}, your {age}-year {orientation} unwind from {location}.",
+    "Verve and vitality at {name}, {age} years verging {orientation} verve in {location}.",
+    "Waltz with wonder with {name}—{age} years waltzing {orientation} wonders in {location}.",
+    "Xenial xquisiteness with {name}, a {age}-year {orientation} xenial in {location}.",
+    "Yearn for youth at {name}, {age} years yearning {orientation} youth in {location}."
+  ];
+
+  // Special welcome templates for new VIP accounts (e.g., <7 days old)
+  const newVIPTemplates = [
+    "Freshly fabulous! Meet {name}, the newest {age}-year {orientation} star in {location}.",
+    "Newly nestled allure: {name} brings {age} years of {orientation} to {location}. Indulge immediately!",
+    "Just joined—{name} in {location} offers {age}-year {orientation} magic. Seize the moment!",
+    "Hot new highlight: {name} spotlights {age} years of {orientation} in {location}.",
+    "Brand new brilliance at {name}—{age} years fresh for {orientation} in {location}.",
+    "Welcome the wave of wonder: {name} waves into {location} with {age} years of {orientation}.",
+    "Sparkling newcomer: {name} sparkles with {age}-year {orientation} in {location}.",
+    "Dawn of dazzle at {name}, a budding {age}-year {orientation} in {location}.",
+    "New nexus of nights: {name} connects {age} years of {orientation} in {location}.",
+    "Fresh flair: {name} flares {age} years of {orientation} anew in {location}."
+  ];
+
   return (
     <>
-      {vipAccountsByCounty.map((countyData) => (
-        <section key={countyData._id} className="max-w-6xl mx-auto px-4 py-8">
-          <h2 className="text-2xl font-bold mt-8 mb-4 text-pink-500 text-center">
-            VIP Accounts in {countyData._id}
-          </h2>
+      {vipAccountsByCounty.map((countyData) => {
+        if (!countyData.users || countyData.users.length === 0) {
+          return (
+            <section key={countyData._id} className="max-w-6xl mx-auto px-4 py-8">
+              <h2 className="md:text-3xl font-bold text-center mb-6 text-pink-600">
+                VIP Accounts in {countyData._id}
+              </h2>
+              <p className="text-gray-500 text-center text-lg">
+                No premium companions available in {countyData._id} right now. Explore more counties for elite encounters!
+              </p>
+            </section>
+          );
+        }
 
-          {countyData.users && countyData.users.length > 0 ? (
+        return (
+          <section key={countyData._id} className="max-w-6xl mx-auto px-4 py-8">
+            <h2 className="md:text-3xl font-bold text-center mb-6 text-pink-600">
+              Elite VIP Escorts in {countyData._id}
+            </h2>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
               {countyData.users.map((vip) => {
                 // ✅ Check online status
@@ -29,56 +111,82 @@ const VIPListByCounty = ({ vipAccountsByCounty }) => {
                   (u) => u.userId?.toString() === vip.user?.toString()
                 );
 
+                // Check if VIP is new (adjust threshold as needed; assumes createdAt is a Date string)
+                const isNewVIP = vip.createdAt && new Date(vip.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                const templates = isNewVIP ? newVIPTemplates : summaryTemplates;
+                const randomIndex = Math.floor(Math.random() * templates.length);
+                const summary = templates[randomIndex]
+                  .replace("{name}", vip.personal?.username || "VIP")
+                  .replace("{age}", vip.personal?.age || "timeless")
+                  .replace("{location}", `${vip.location?.constituency}, ${vip.location?.ward}`)
+                  .replace("{orientation}", vip.personal?.orientation || "versatile");
+
                 return (
                   <div
                     key={vip._id}
-                    className="border rounded-lg shadow-lg p-6 bg-white transition-all duration-300 hover:border-pink-500 hover:shadow-xl hover:scale-105"
+                    className="border rounded-xl shadow-lg p-6 bg-gradient-to-br from-white to-pink-50 transition-all duration-500 hover:border-pink-400 hover:shadow-2xl hover:scale-105 hover:bg-gradient-to-br hover:from-pink-50 hover:to-white relative overflow-hidden"
                   >
+                    {/* Subtle overlay for depth */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-pink-500/5 to-transparent"></div>
+                    
                     <Link
                       to={`/profile/${vip._id}`}
-                      className="block text-center relative"
+                      className="block text-center relative group z-10"
                     >
                       {vip.photos && vip.photos.length > 0 && (
-                        <div className="w-full h-64 flex justify-center items-center relative">
+                        <div className="w-full h-64 flex justify-center items-center relative rounded-lg overflow-hidden">
                           <AdvancedImage
                             cldImg={cld
                               .image(vip.photos[0])
                               .resize(auto().gravity(autoGravity()))}
-                            className="w-full h-full object-cover rounded-md"
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                             alt="Profile Photo"
                           />
 
                           {/* ✅ Online/Offline Indicator */}
-                          <div className="absolute top-2 right-2 flex items-center space-x-1">
+                          <div className="absolute top-3 right-3 flex items-center space-x-1 bg-black/20 backdrop-blur-sm px-2 py-1 rounded-full">
                             <span
                               className={`w-3 h-3 rounded-full border-2 border-white shadow-md ${
                                 isOnline ? "bg-green-500" : "bg-gray-400"
                               }`}
                             ></span>
-                            <span className="text-xs text-white bg-black/50 px-1.5 py-0.5 rounded">
+                            <span className="text-xs text-white font-semibold">
                               {isOnline ? "Online" : "Offline"}
                             </span>
                           </div>
+
+                          {/* Verification Badge */}
+                          {vip.verified && (
+                            <div className="absolute top-3 left-3">
+                              <MdVerified className="text-pink-500 text-xl" />
+                            </div>
+                          )}
+
+                          {/* New VIP Badge */}
+                          {isNewVIP && (
+                            <div className="absolute bottom-3 left-3 bg-yellow-400 text-black px-2 py-1 rounded-full text-xs font-bold">
+                              New VIP!
+                            </div>
+                          )}
                         </div>
                       )}
 
-                      <h3 className="mt-4 text-lg font-semibold text-gray-800 flex items-center justify-center">
-                        Meet {vip.personal?.username} escort
-                      </h3>
-                      <p className="text-gray-600">
-                        {vip.personal?.gender} | {vip.personal?.orientation}{" "}
-                        {vip.personal?.age}
+                      {/* Captivating Randomized Summary */}
+                      <p className="mt-4 text-gray-700 font-semibold text-base leading-relaxed">
+                        {summary}
                       </p>
-                      <p className="text-gray-500 text-sm mt-2">
-                        {vip.location?.constituency}, {vip.location?.ward}
-                      </p>
+
+                      {/* View Profile Button */}
+                      <span className="mt-4 inline-block px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-bold rounded-full text-sm hover:from-pink-600 hover:to-rose-600 transition-all duration-300 shadow-lg hover:shadow-pink-500/25 cursor-pointer transform hover:-translate-y-1">
+                        View Profile
+                      </span>
                     </Link>
 
                     {/* ✅ Call Button */}
                     {vip?.personal?.phone && (
                       <a
                         href={`tel:${vip.personal.phone}`}
-                        className="mt-4 inline-block w-full text-center bg-pink text-white py-2 rounded hover:bg-pink/90 transition"
+                        className="mt-4 inline-block w-full text-center bg-gradient-to-r from-rose-500 to-pink-500 text-white py-3 rounded-lg font-bold hover:from-rose-600 hover:to-pink-600 transition-all duration-300 shadow-lg hover:shadow-rose-500/25"
                       >
                         Call Now {vip.personal.phone}
                       </a>
@@ -87,13 +195,9 @@ const VIPListByCounty = ({ vipAccountsByCounty }) => {
                 );
               })}
             </div>
-          ) : (
-            <p className="text-red-500 text-center text-lg">
-              No VIP Accounts available in this county.
-            </p>
-          )}
-        </section>
-      ))}
+          </section>
+        );
+      })}
     </>
   );
 };
