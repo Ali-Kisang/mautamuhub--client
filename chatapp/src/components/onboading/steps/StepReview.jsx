@@ -1,19 +1,48 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
+
+const CLOUD_NAME = "dcxggvejn"; 
+
+const optimizeImage = (publicId) =>
+  `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/f_auto,q_auto,w_300,h_300,c_fill/${publicId}`;
 
 export function StepReview({ formData }) {
   const { personal, location, additional, services, accountType, photos = [] } = formData;
 
-  useEffect(() => {
-    // Clean up object URLs on unmount if needed
-    const urls = photos
-      .filter((file) => file instanceof File || file instanceof Blob)
-      .map((file) => URL.createObjectURL(file));
+  const photoPreviews = useMemo(() => {
+    return photos
+      .map((item) => {
+        let url = null;
+        let isFile = false;
+        let file = null;
 
-    return () => {
-      urls.forEach((url) => URL.revokeObjectURL(url));
-    };
+        if (item instanceof File || item instanceof Blob) {
+          try {
+            url = URL.createObjectURL(item);
+            isFile = true;
+            file = item;
+          } catch (err) {
+            console.warn("Failed to create object URL for file:", err);
+          }
+        } else if (typeof item === "string") {
+          url = optimizeImage(item);
+          isFile = false;
+        }
+
+        return url ? { url, isFile, file } : null;
+      })
+      .filter(Boolean);
   }, [photos]);
+
+  useEffect(() => {
+    return () => {
+      photoPreviews.forEach((p) => {
+        if (p.isFile && p.file instanceof File) {
+          URL.revokeObjectURL(p.url);
+        }
+      });
+    };
+  }, [photoPreviews]);
 
   return (
     <motion.div
@@ -98,32 +127,28 @@ export function StepReview({ formData }) {
 
       {/* Uploaded Photos */}
       <ReviewSection title="Uploaded Photos">
-        {photos.length > 0 ? (
+        {photoPreviews.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {photos.map((file, i) => {
-              let url = null;
-
-              if (typeof file === "string") {
-                url = file;
-              } else if (file instanceof File || file instanceof Blob) {
-                try {
-                  url = URL.createObjectURL(file);
-                } catch (err) {
-                  console.warn("Invalid file:", file);
-                }
-              }
-
-              return url ? (
-                <div key={i} className="relative">
-                  <img
-                    src={url}
-                    loading="lazy"
-                    alt={`Preview ${i + 1}`}
-                    className="rounded-lg object-cover w-full h-32 border border-pink-200 shadow-sm"
-                  />
-                </div>
-              ) : null;
-            })}
+            {photoPreviews.map(({ url, isFile }, i) => (
+              <div key={i} className="relative">
+                <img
+                  src={url}
+                  loading="lazy"
+                  alt={`Preview ${i + 1}`}
+                  className="rounded-lg object-cover w-full h-32 border border-pink-200 shadow-sm"
+                  onError={(e) => {
+                    if (isFile) {
+                      // Fallback for local file preview error
+                      e.target.style.display = 'none';
+                      const fallbackDiv = document.createElement('div');
+                      fallbackDiv.className = 'flex items-center justify-center h-32 bg-gray-100 text-gray-500 text-sm';
+                      fallbackDiv.textContent = `Preview ${i + 1}`;
+                      e.target.parentNode.appendChild(fallbackDiv);
+                    }
+                  }}
+                />
+              </div>
+            ))}
           </div>
         ) : (
           <p className="text-gray-500">No photos uploaded.</p>

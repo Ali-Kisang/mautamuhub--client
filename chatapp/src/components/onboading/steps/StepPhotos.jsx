@@ -21,9 +21,11 @@ export const validatePhotos = (photos = [], accountType = {}) => {
     default: photoLimit = 0;
   }
 
-  if (photos.length === 0) {
+  // ✅ Check for actual Files or strings (publicIds)
+  const validPhotos = photos.filter(photo => photo instanceof File || typeof photo === 'string');
+  if (validPhotos.length === 0) {
     errors.photos = "Please upload at least one photo.";
-  } else if (photos.length > photoLimit) {
+  } else if (validPhotos.length > photoLimit) {
     errors.photos = `You can only upload up to ${photoLimit} photos.`;
   }
 
@@ -52,13 +54,14 @@ const StepPhotos = ({ data, updateData, accountType }) => {
 
   const galleryPreviews = useMemo(() => {
     return galleryPhotos
-      .map((item) => {
+      .map((item, index) => {
         if (item instanceof File) {
-          return { url: URL.createObjectURL(item), isFile: true, file: item };
+          return { url: URL.createObjectURL(item), isFile: true, file: item, index };
         }
         if (typeof item === "string") {
-          return { url: optimizeImage(item), isFile: false };
+          return { url: optimizeImage(item), isFile: false, index };
         }
+        console.warn(`⚠️ Invalid photo at index ${index}:`, item);  // Debug invalid items
         return null;
       })
       .filter(Boolean);
@@ -79,17 +82,27 @@ const StepPhotos = ({ data, updateData, accountType }) => {
       file.type.startsWith("image/")
     );
 
-    if (galleryPhotos.length + imageFiles.length > photoLimit) {
+    if (imageFiles.length === 0) {
+      showToast("Please select image files only.", true);
+      return;
+    }
+
+    const currentValidPhotos = galleryPhotos.filter(photo => photo instanceof File || typeof photo === 'string');
+    if (currentValidPhotos.length + imageFiles.length > photoLimit) {
       showToast(`You can only upload up to ${photoLimit} photos.`, true);
       return;
     }
 
-    updateData([...galleryPhotos, ...imageFiles]);
-    showToast("Photos uploaded successfully!");
+    // ✅ Update with new Files (preserve existing)
+    const updatedPhotos = [...currentValidPhotos, ...imageFiles];
+    console.log('📸 Updated Photos in StepPhotos:', updatedPhotos.length, 'items (Files preserved)');  // Debug
+    updateData(updatedPhotos);
+    showToast(`${imageFiles.length} photo(s) added successfully!`);
   };
 
   const handleFileUpload = (event) => {
     handleFiles(event.target.files);
+    event.target.value = '';  // Reset input for re-select
   };
 
   const handleDrop = (e) => {
@@ -122,7 +135,7 @@ const StepPhotos = ({ data, updateData, accountType }) => {
     } else {
       // Local file removal
       updatedPhotos = galleryPhotos.filter((_, i) => i !== index);
-      const preview = galleryPreviews[index];
+      const preview = galleryPreviews.find(p => p.index === index);
       if (preview?.isFile) {
         URL.revokeObjectURL(preview.url);
       }
@@ -189,18 +202,18 @@ const StepPhotos = ({ data, updateData, accountType }) => {
             <p className="text-sm text-gray-500">No photos uploaded yet.</p>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {galleryPreviews.map(({ url }, i) => (
+              {galleryPreviews.map(({ url, index }) => (
                 <div
-                  key={i}
+                  key={index}
                   className="relative group rounded-md overflow-hidden shadow-md border"
                 >
                   <img
                     src={url}
-                    alt={`Photo ${i + 1}`}
+                    alt={`Photo ${index + 1}`}
                     className="object-contain h-40 w-full"
                   />
                   <button
-                    onClick={() => removePhoto(i)}
+                    onClick={() => removePhoto(index)}
                     className="absolute top-2 right-2 bg-pink-600 hover:bg-pink-700 text-white rounded-full p-1 transition opacity-0 group-hover:opacity-100"
                   >
                     <X size={18} />

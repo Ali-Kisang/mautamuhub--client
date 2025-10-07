@@ -13,7 +13,6 @@ const SpasList = ({ spas }) => {
 
   const { onlineUsers } = useAuthStore();
 
-  // Array of at least 50 random inviting summaries. Customize these to fit your brand.
   const summaryTemplates = [
     "Rejuvenate at {name}, a tranquil {age}-year haven in {location}, offering {orientation} therapies.",
     "Discover bliss with {name} in {location}—your {age}-year-old sanctuary for {orientation} wellness wonders.",
@@ -67,7 +66,6 @@ const SpasList = ({ spas }) => {
     "City-sigh spa at {name}, {age} years easing {location}'s hustle with {orientation}."
   ];
 
-  // Special welcome templates for new spas (e.g., <7 days old)
   const newSpaTemplates = [
     "Freshly blooming! Welcome to {name}, the newest {age}-year haven in {location} for {orientation} therapies.",
     "Newly arrived serenity: {name} brings {age} years of {orientation} magic to {location}. Book your first escape!",
