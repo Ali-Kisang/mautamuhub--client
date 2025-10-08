@@ -1,384 +1,383 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
-import { Camera, Trash2 } from "lucide-react";
-import { useAuthStore } from "../../store/useAuthStore";
-import { server } from "../../server";
-import { useNavigate } from "react-router-dom";
-import { Info } from "lucide-react";
-const ProfilePage = () => {
-  const { authUser, onlineUsers } = useAuthStore();
+import { Link } from "react-router-dom";
+import { Cloudinary } from "@cloudinary/url-gen";
+import { AdvancedImage } from "@cloudinary/react";
+import { auto } from "@cloudinary/url-gen/actions/resize";
+import { autoGravity } from "@cloudinary/url-gen/qualifiers/gravity";
+import api from "../utils/axiosInstance";
+import { useAuthStore } from "../store/useAuthStore";
+import ProfileLayout from "./ProfileLayout";
+import { DotStream } from "ldrs/react";
 
-  
-  const navigate = useNavigate();
-  const [escortData, setEscortData] = useState(null);
-  const [editableServices, setEditableServices] = useState([]);
-  const [formData, setFormData] = useState({
-    phoneNumber: "",
-    gender: "",
-    sexualOrientation: "",
-    ethnicity: "",
+// Lucide icons
+import { User, MapPin, Phone, Heart, DollarSign, Camera, PlusCircle, AlertTriangle, Edit2, ArrowUpRight, Clock, Crown } from "lucide-react";
+// Material Design icon
+import { MdVerified } from "react-icons/md";
+
+export default function ProfilePage() {
+  const { user } = useAuthStore();
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const cld = new Cloudinary({
+    cloud: { cloudName: "dcxggvejn" },
   });
-
-  const [editableLocation, setEditableLocation] = useState({
-    county: "",
-    constituency: "",
-    ward: "",
-    localArea: "",
-    roadStreet: "",
-  });
-
-  const [selectedPhotos, setSelectedPhotos] = useState([]);
-  const [newPhotos, setNewPhotos] = useState([]);
 
   useEffect(() => {
-    if (!authUser?._id) return;
-    const fetchData = async () => {
+    const fetchProfileStatus = async () => {
+      if (!user?._id) {
+        setError("You are not logged in.");
+        setLoading(false);
+        return;
+      }
+
       try {
-        const res = await axios.get(
-          `${server}/escorts/user-profile/${authUser._id}`
-        );
-
-        setEscortData(res.data);
-        setEditableLocation(res.data.breadcrumbLocation || {});
-        setEditableServices(res.data.services || []);
-        setSelectedPhotos(res.data.photos || []);
-
-        setFormData({
-          phoneNumber: res.data.personalInfo?.phoneNumber || "",
-          gender: res.data.personalInfo?.gender || "",
-          sexualOrientation: res.data.personalInfo?.sexualOrientation || "",
-          ethnicity: res.data.personalInfo?.ethnicity || "",
-          username: res.data.personalInfo?.username || "",
-        });
+        const res = await api.get("/users/check-profile");
+        if (res.data.hasProfile) {
+          setProfile(res.data.profile);
+        } else {
+          setProfile(null);
+        }
       } catch (err) {
-        console.error("Failed to fetch escort data", err);
+        console.error("Check profile error:", err);
+        setError("Could not check profile status");
+      } finally {
+        setLoading(false);
       }
     };
-    fetchData();
-  }, [authUser]);
 
-  const isMissingProfileInfo =
-    !editableLocation?.county ||
-    editableServices.length === 0 ||
-    !formData.phoneNumber ||
-    !formData.gender ||
-    !formData.sexualOrientation ||
-    !formData.ethnicity;
+    fetchProfileStatus();
+  }, [user?._id]);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+  // ✅ New: Calculate days left from expiryDate
+  const getDaysLeft = (expiryDate) => {
+    if (!expiryDate) return null;
+    const now = new Date();
+    const expiry = new Date(expiryDate);
+    const diffTime = expiry - now;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0;
   };
 
-  const handlePhotoChange = (e) => {
-    const files = Array.from(e.target.files);
-    const newImagePreviews = files.map((file) => ({
-      file,
-      preview: URL.createObjectURL(file),
-    }));
-    setNewPhotos([...newPhotos, ...newImagePreviews]);
+  const getAvatarUrl = (avatar) => {
+    if (!avatar) return "/default-avatar.png";
+    return `https://res.cloudinary.com/dcxggvejn/image/upload/${avatar}`;
   };
 
-  const handleRemoveExistingPhoto = (photoUrl) => {
-    setSelectedPhotos((prev) => prev.filter((url) => url !== photoUrl));
+  const isVerified = profile?.accountType?.type === "VVIP" || profile?.accountType?.type === "Spa";
+  const accountType = profile?.accountType?.type || "Regular";
+  const isTrial = profile?.isTrial || false;
+  const daysLeft = getDaysLeft(profile?.expiryDate);
+  const isExpiringSoon = daysLeft > 0 && daysLeft <= 3 && isTrial;  // Warn for trials only
+  const isExpired = profile?.active === false;  // Backend sets active: false on expiry
+
+  const getAccountBadgeClass = (type) => {
+    switch (type) {
+      case "Spa": return "bg-purple-100 text-purple-800 border-purple-300";
+      case "VVIP": return "bg-indigo-100 text-indigo-800 border-indigo-300";
+      case "VIP": return "bg-yellow-100 text-yellow-800 border-yellow-300";
+      case "Regular": return "bg-gray-100 text-gray-800 border-gray-300";
+      default: return "bg-gray-100 text-gray-800 border-gray-300";
+    }
   };
 
-  const handleRemoveNewPhoto = (previewUrl) => {
-    setNewPhotos((prev) => prev.filter((img) => img.preview !== previewUrl));
+  // ✅ New: Badge text with trial indicator
+  const getBadgeText = () => {
+    let text = `${accountType} Account`;
+    if (isTrial) text += " (Trial)";
+    if (daysLeft !== null && daysLeft > 0) text += ` – ${daysLeft} days left`;
+    return text;
   };
-
-  const handleSubmit = async () => {
-  const formDataPayload = new FormData();
-
-  selectedPhotos.forEach((photo) =>
-    formDataPayload.append("existingPhotos", photo)
-  );
-  newPhotos.forEach(({ file }) => formDataPayload.append("newPhotos", file));
-  formDataPayload.append(
-    "breadcrumbLocation",
-    JSON.stringify(editableLocation)
-  );
-  formDataPayload.append("services", JSON.stringify(editableServices));
-
-  // Add the first image as profilePic
-  formDataPayload.append("profilePic", selectedPhotos[0] || "");
-
-  try {
-    await axios.put(
-      `${server}/escorts/user-profile/${authUser._id}`,
-      formDataPayload,
-      { headers: { "Content-Type": "multipart/form-data" } }
-    );
-    alert("Profile updated successfully");
-  } catch (err) {
-    console.error("Error updating profile:", err);
-    alert("Failed to update profile");
-  }
-};
-
-
-  const accountType = escortData?.accountType;
 
   return (
-    <div className="max-w-4xl  mx-auto px-4 py-10 space-y-8">
-      {/* Heading */}
-      <div className="text-center space-y-2">
-        <h1 className="text-2xl text-pink font-bold">Your Profile</h1>
-        <p className="text-gray-500">Manage your profile {authUser?.fullName}</p>
-        <div className="flex justify-center">
-  <div className="relative w-24 h-24">
-    <div className="avatar">
-      <div className="w-24 rounded-full ring ring-pink-500 ring-offset-2">
-<img
-        src={
-  selectedPhotos.length > 0
-    ? `https://res.cloudinary.com/dcxggvejn/image/upload/${selectedPhotos[0]}`
-    : authUser?.profilePic || "/avatar.png"
-}
-/>
-      </div>
-    </div>
-    {onlineUsers?.includes(authUser._id) && (
-      <span className="absolute bottom-1 right-1 w-3 h-3 bg-green-500 rounded-full ring-2 ring-white" />
-    )}
-  </div>
-</div>
-
-
-
-      </div>
-
-      {/* User Info */}
-      <div className="bg-base-200 p-6 rounded-lg space-y-4">
-        <h2 className="font-semibold text-lg underline">Your Profile Info</h2>
-        <div>
-          <p className="font-semibold">Full Name:</p>
-          <p className="text-gray-700">{authUser?.fullName || "N/A"}</p>
+    <ProfileLayout>
+      {loading && (
+        <div className="flex flex-col items-center justify-center h-64 gap-2" role="status" aria-live="polite">
+          <l-dot-stream size="60" speed="2.5" color="#ec4899"></l-dot-stream>
+          <p className="text-pink-500 font-medium">Loading your profile...</p>
         </div>
-        <div>
-          <p className="font-semibold">Email:</p>
-          <p className="text-gray-700">{authUser?.email || "N/A"}</p>
-         
-        </div>
-      </div>
+      )}
 
-      {isMissingProfileInfo ? (
-        <div className="text-center mt-8">
-          <div className="flex items-start gap-2 text-sm text-gray-500">
-    <Info className="mt-0.5" size={16} />
-    <p>
-      You are using this account to chat only. To access more features such as
-      creating a profile and being listed, please upgrade your account.
-    </p>
-  </div>
-          <button
-            className="btn btn-primary px-6"
-            onClick={() => navigate("/get-started")}
-          >
-            Create Account
-          </button>
+      {error && (
+        <div className="p-6 text-center text-red-500" role="alert">
+          {error}
         </div>
-      ) : (
+      )}
+
+      {/* 🔹 If no profile, show user fallback */}
+      {!loading && !error && !profile && user && (
         <>
-          {/* Personal Info */}
-          <div className="grid md:grid-cols-2 gap-6 bg-base-200 p-6 rounded-lg">
-            <div>
-              <label className="font-semibold block mb-1" htmlFor="phoneNumber">
-                Phone Number:
-              </label>
-              <input
-                id="phoneNumber"
-                name="phoneNumber"
-                type="text"
-                value={formData.phoneNumber}
-                onChange={handleInputChange}
-                className="input input-bordered w-full"
+          {/* Banner */}
+          <div className="bg-gradient-to-r from-pink-200 to-pink-500 h-48 relative">
+            <div className="absolute -bottom-20 left-1/2 transform -translate-x-1/2 flex flex-col items-center">
+              <img
+                src={getAvatarUrl(user.avatar)}
+                alt={`${user.username}'s avatar`}
+                className="w-36 h-36 rounded-full border-4 border-pink-500 shadow-lg object-cover"
+                loading="lazy"
               />
+              <h1 className="mt-6 text-2xl md:text-3xl font-bold text-gray-800 text-center">
+                {user.username}
+              </h1>
+              <p className="mt-1 text-gray-600 text-center">{user.email}</p>
             </div>
-            <div>
-              <label className="font-semibold block mb-1" htmlFor="gender">
-                Gender:
-              </label>
-              <input
-                id="gender"
-                name="gender"
-                value={formData.gender}
-                onChange={handleInputChange}
-                className="input input-bordered w-full"
-              />
-            </div>
-            <div>
-              <label
-                className="font-semibold block mb-1"
-                htmlFor="sexualOrientation"
+          </div>
+
+          {/* Content */}
+          <div className="max-w-5xl mx-auto mt-28 space-y-6 p-4 text-center">
+            <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+              <p className="text-gray-600 mb-4 flex items-center justify-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-yellow-500" aria-hidden="true" />
+                You are not listed yet. Create one to unlock full features. This account is currently limited to chatting only.
+              </p>
+              <Link
+                to="/create-account"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-pink-500 text-white rounded-lg shadow hover:bg-pink-600 transition-colors focus:outline-none focus:ring-2 focus:ring-pink-300"
+                aria-label="Activate your account to get listed"
               >
-                Orientation:
-              </label>
-              <input
-                id="sexualOrientation"
-                name="sexualOrientation"
-                type="text"
-                value={formData.sexualOrientation}
-                onChange={handleInputChange}
-                className="input input-bordered w-full"
-              />
+                <PlusCircle size={18} />
+                Activate Your Account
+              </Link>
             </div>
-            <div>
-              <label className="font-semibold block mb-1" htmlFor="ethnicity">
-                Ethnicity:
-              </label>
-              <input
-                id="ethnicity"
-                name="ethnicity"
-                type="text"
-                value={formData.ethnicity}
-                onChange={handleInputChange}
-                className="input input-bordered w-full"
-              />
-            </div>
-          </div>
-
-          {/* Location */}
-          <div className="bg-base-200 p-6 rounded-lg space-y-4">
-            <h2 className="font-semibold text-lg">Location</h2>
-            {Object.entries(editableLocation).map(([key, value]) => (
-              <div key={key}>
-                <label
-                  className="block font-semibold capitalize mb-1"
-                  htmlFor={key}
-                >
-                  {key.replace(/([A-Z])/g, " $1")}
-                </label>
-                <input
-                  id={key}
-                  type="text"
-                  value={value || ""}
-                  onChange={(e) =>
-                    setEditableLocation((prev) => ({
-                      ...prev,
-                      [key]: e.target.value,
-                    }))
-                  }
-                  className="input input-bordered w-full"
-                />
-              </div>
-            ))}
-          </div>
-
-          {/* Account Info */}
-          <div className="bg-base-200 p-6 rounded-lg space-y-2">
-            <h2 className="font-semibold text-lg">Account</h2>
-            <p>Type: {accountType?.type || "N/A"}</p>
-            <p>Amount: KES {accountType?.amount || 0}</p>
-          </div>
-
-          {/* Services */}
-          <div className="bg-base-200 p-6 rounded-lg">
-            <h2 className="font-semibold text-lg mb-2">Services Offered</h2>
-            <div className="flex flex-wrap gap-2 mb-3">
-              {editableServices.map((service, index) => (
-                <div
-                  key={index}
-                  className="badge badge-outline flex items-center space-x-2"
-                >
-                  <span>{service}</span>
-                  <button
-                    onClick={() =>
-                      setEditableServices((prev) =>
-                        prev.filter((_, i) => i !== index)
-                      )
-                    }
-                    className="btn btn-xs btn-error btn-circle"
-                    aria-label="Remove service"
-                  >
-                    &times;
-                  </button>
-                </div>
-              ))}
-            </div>
-            <input
-              type="text"
-              placeholder="Add a new service"
-              className="input input-bordered w-full max-w-xs"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && e.target.value.trim()) {
-                  e.preventDefault();
-                  setEditableServices((prev) => [
-                    ...prev,
-                    e.target.value.trim(),
-                  ]);
-                  e.target.value = "";
-                }
-              }}
-            />
-            <p className="text-sm text-gray-500 mt-1">
-              Press Enter to add a service
-            </p>
-          </div>
-
-          {/* Photo Gallery */}
-          <div className="bg-base-200 p-6 rounded-lg">
-            <h2 className="font-semibold text-lg mb-4">Photo Gallery</h2>
-            <div className="flex flex-wrap gap-4 mb-4">
-              {selectedPhotos.map((photo, index) => (
-                <div key={index} className="relative w-32 h-32">
-                  <img
-                    src={`https://res.cloudinary.com/dcxggvejn/image/upload/${photo}`}
-                    alt={`photo-${index}`}
-                    className="w-full h-full object-cover rounded-lg"
-                  />
-                  <button
-                    onClick={() => handleRemoveExistingPhoto(photo)}
-                    className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full hover:bg-red-700"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-4 mb-4">
-              {newPhotos.map((img, index) => (
-                <div key={index} className="relative w-32 h-32">
-                  <img
-                    src={img.preview}
-                    alt="preview"
-                    className="w-full h-full object-cover rounded-lg"
-                  />
-                  <button
-                    onClick={() => handleRemoveNewPhoto(img.preview)}
-                    className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full hover:bg-red-700"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ))}
-            </div>
-            <label className="btn btn-outline btn-primary cursor-pointer">
-              <Camera className="mr-2" />
-              Upload Photo(s)
-              <input
-                type="file"
-                className="hidden"
-                multiple
-                accept="image/*"
-                onChange={handlePhotoChange}
-              />
-            </label>
-          </div>
-
-          {/* Save Button */}
-          <div className="text-center">
-            <button className="btn btn-success px-6" onClick={handleSubmit}>
-              Update Profile
-            </button>
           </div>
         </>
       )}
-    </div>
-  );
-};
 
-export default ProfilePage;
+      {/* 🔹 If profile exists but expired, show expiry banner */}
+      {profile && isExpired && (
+        <div className="max-w-5xl mx-auto mt-4 p-4 bg-red-50 border border-red-200 rounded-xl text-center">
+          <p className="text-red-800 flex items-center justify-center gap-2 mb-2">
+            <AlertTriangle className="w-5 h-5" aria-hidden="true" />
+            Your {accountType} {isTrial ? 'trial' : 'subscription'} has expired. Upgrade to reactivate your profile!
+          </p>
+          <Link
+            to="/upgrade-account"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg shadow hover:bg-red-600 transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
+            aria-label="Upgrade to reactivate"
+          >
+            <ArrowUpRight size={18} />
+            Upgrade Now
+          </Link>
+        </div>
+      )}
+
+      {/* 🔹 If profile active but expiring soon (trials only), show warning banner */}
+      {profile && !isExpired && isExpiringSoon && (
+        <div className="max-w-5xl mx-auto mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+          <p className="text-yellow-800 flex items-center justify-center gap-2">
+            <Clock className="w-5 h-5" aria-hidden="true" />
+            Your trial ends in {daysLeft} day{daysLeft !== 1 ? 's' : ''}. Upgrade to keep your {accountType} features!
+          </p>
+          <Link
+            to="/upgrade-account"
+            className="inline-flex items-center gap-1 mt-2 px-3 py-1 text-sm bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-300 ml-auto"
+            aria-label="Upgrade before expiry"
+          >
+            <ArrowUpRight size={14} />
+            Upgrade Now
+          </Link>
+        </div>
+      )}
+
+      {/* 🔹 If profile exists and active, show profile data */}
+      {profile && !isExpired && (
+        <>
+          {/* Banner */}
+          <div className="bg-gradient-to-r from-pink-200 to-pink-500 h-48 relative">
+            <div className="absolute -bottom-20 left-1/2 transform -translate-x-1/2 flex flex-col items-center">
+              <div className="relative">
+                {profile.photos && profile.photos.length > 0 ? (
+                  <>
+                    <AdvancedImage
+                      cldImg={cld
+                        .image(profile.photos[0])
+                        .resize(auto().gravity(autoGravity()))}
+                      className="w-36 h-36 rounded-full border-4 border-pink-500 shadow-lg object-cover hover:scale-105 transition-transform duration-200"
+                      alt={`${profile.personal?.username}'s profile photo`}
+                    />
+                    {isVerified && (
+                      <div className="absolute top-3 left-3">
+                        <MdVerified className="text-pink-500 text-xl" />
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="w-36 h-36 rounded-full border-4 border-pink-500 shadow-lg bg-gray-200 flex items-center justify-center">
+                    No Photo
+                  </div>
+                )}
+              </div>
+              <h1 className="mt-6 text-2xl md:text-3xl font-bold text-gray-800 text-center">
+                {profile.personal?.username}
+              </h1>
+              <p className="mt-1 text-gray-600 text-center">
+                {profile.personal?.age} yrs · {profile.personal?.gender}
+              </p>
+              <p className="text-gray-500 flex items-center justify-center gap-1 text-center">
+                <MapPin size={16} aria-hidden="true" /> {profile.location?.county},{" "}
+                {profile.location?.constituency}
+              </p>
+            </div>
+          </div>
+
+          {/* Profile content */}
+          <div className="max-w-5xl mx-auto mt-28 space-y-6 p-4">
+            {/* Edit CTA */}
+            <div className="text-right">
+              <Link
+                to="/edit-profile"
+                className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-pink-100 text-pink-700 rounded-md hover:bg-pink-200 transition-colors focus:outline-none focus:ring-2 focus:ring-pink-300"
+                aria-label="Edit your profile"
+              >
+                <Edit2 size={14} />
+                Edit Profile
+              </Link>
+            </div>
+
+            {/* Account Type Badge */}
+            <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+              <h2 className="text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
+                <Crown className="text-pink-500" size={25} aria-hidden="true" /> Account Type
+              </h2>
+              <div className="flex items-center justify-center gap-4">
+                <span className={`px-4 py-2 rounded-full border font-semibold flex items-center gap-2 ${getAccountBadgeClass(accountType)}`}>
+                  {isVerified && <MdVerified className="w-4 h-4 text-pink-500" />}
+                  {getBadgeText()}
+                </span>
+              </div>
+              {!isVerified && !isTrial && (
+                <div className="mt-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg">
+                  <p className="text-yellow-800 flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5" aria-hidden="true" />
+                    You're not verified. Upgrade to VIP or VVIP for better visibility and priority features!
+                  </p>
+                  <Link
+                    to="/upgrade-account"
+                    className="inline-flex items-center gap-1 mt-2 px-3 py-1 text-sm bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-300"
+                    aria-label="Upgrade your account"
+                  >
+                    <ArrowUpRight size={14} />
+                    Upgrade Now
+                  </Link>
+                </div>
+              )}
+              {isTrial && (
+                <div className="mt-4 p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
+                  <p className="text-blue-800 flex items-center gap-2">
+                    <Clock className="w-5 h-5" aria-hidden="true" />
+                    Enjoying your free trial? Upgrade anytime to continue without interruptions.
+                  </p>
+                  <Link
+                    to="/upgrade-account"
+                    className="inline-flex items-center gap-1 mt-2 px-3 py-1 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    aria-label="Upgrade from trial"
+                  >
+                    <ArrowUpRight size={14} />
+                    Upgrade to Full
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* Personal Info */}
+            <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+              <h2 className="text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
+                <User className="text-pink-500" size={25} aria-hidden="true" /> Personal Info
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-700">
+                <p>
+                  <span className="font-medium flex items-center gap-1">
+                    <Phone size={16} aria-hidden="true" /> Phone:
+                  </span>{" "}
+                  {profile.personal?.phone}
+                </p>
+                <p>
+                  <span className="font-medium">Ethnicity:</span>{" "}
+                  {profile.personal?.ethnicity}
+                </p>
+                <p>
+                  <span className="font-medium">Orientation:</span>{" "}
+                  {profile.personal?.orientation}
+                </p>
+              </div>
+            </div>
+
+            {/* Rates */}
+            <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+              <h2 className="text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
+                <DollarSign className="text-pink-500" size={25} aria-hidden="true" /> Rates
+              </h2>
+              <div className="flex flex-wrap gap-3">
+                <span className="bg-pink-100 text-pink-500 px-4 py-2 rounded-lg font-medium">
+                  Incall: Ksh {profile.additional?.incallRate}
+                </span>
+                <span className="bg-pink-100 text-pink-500 px-4 py-2 rounded-lg font-medium">
+                  Outcall: Ksh {profile.additional?.outcallRate}
+                </span>
+              </div>
+            </div>
+
+            {/* Services */}
+            {profile.services?.selected?.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+                <h2 className="text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
+                  <Heart size={25} className="text-pink-500" aria-hidden="true" /> Services
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {profile.services.selected.map((service, i) => (
+                    <span
+                      key={i}
+                      className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm hover:bg-gray-200 transition-colors"
+                    >
+                      {service}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* About Me */}
+            <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+              <h2 className="text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
+                <User size={25} className="text-pink-500" aria-hidden="true" /> About Me
+              </h2>
+              <p className="text-gray-700 leading-relaxed">
+                {profile.additional?.description || "No description available."}
+              </p>
+            </div>
+
+            {/* Photos */}
+            {profile.photos && profile.photos.length > 0 ? (
+              <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+                <h2 className="text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
+                  <Camera size={25} className="text-pink-500" aria-hidden="true" /> Photos
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {profile.photos.map((publicId, i) => (
+                    <div
+                      key={i}
+                      className="relative overflow-hidden rounded-lg shadow aspect-square bg-gray-100"
+                    >
+                      <AdvancedImage
+                        cldImg={cld
+                          .image(publicId)
+                          .resize(auto().gravity(autoGravity()))}
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                        alt={`${profile.personal?.username}'s photo ${i + 1}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl shadow-sm p-6 text-center text-gray-500">
+                No photos uploaded yet.
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </ProfileLayout>
+  );
+}

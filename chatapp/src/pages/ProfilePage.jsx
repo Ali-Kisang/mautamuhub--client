@@ -10,7 +10,7 @@ import ProfileLayout from "./ProfileLayout";
 import { DotStream } from "ldrs/react";
 
 // Lucide icons
-import { User, MapPin, Phone, Heart, DollarSign, Camera, PlusCircle, AlertTriangle, Edit2, ArrowUpRight } from "lucide-react";
+import { User, MapPin, Phone, Heart, DollarSign, Camera, PlusCircle, AlertTriangle, Edit2, ArrowUpRight, Clock } from "lucide-react";
 // Material Design icon
 import { MdVerified } from "react-icons/md";
 import { Crown } from "lucide-react";
@@ -51,6 +51,16 @@ export default function ProfilePage() {
     fetchProfileStatus();
   }, [user?._id]);
 
+  // ✅ Calculate days left from expiryDate
+  const getDaysLeft = (expiryDate) => {
+    if (!expiryDate) return null;
+    const now = new Date();
+    const expiry = new Date(expiryDate);
+    const diffTime = expiry - now;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0;
+  };
+
   const getAvatarUrl = (avatar) => {
     if (!avatar) return "/default-avatar.png";
     return `https://res.cloudinary.com/dcxggvejn/image/upload/${avatar}`;
@@ -58,7 +68,10 @@ export default function ProfilePage() {
 
   const isVerified = profile?.accountType?.type === "VVIP" || profile?.accountType?.type === "Spa";
   const accountType = profile?.accountType?.type || "Regular";
-  const durationLeft = profile?.accountType?.duration; // Assuming duration is remaining days; adjust if it's total
+  const isTrial = profile?.isTrial || false;
+  const daysLeft = getDaysLeft(profile?.expiryDate);
+  const isExpiringSoon = daysLeft > 0 && daysLeft <= 3 && isTrial;  // Warn for trials only
+  const isExpired = profile?.active === false;  // Backend sets active: false on expiry
 
   const getAccountBadgeClass = (type) => {
     switch (type) {
@@ -68,6 +81,14 @@ export default function ProfilePage() {
       case "Regular": return "bg-gray-100 text-gray-800 border-gray-300";
       default: return "bg-gray-100 text-gray-800 border-gray-300";
     }
+  };
+
+  // ✅ Badge text with trial indicator
+  const getBadgeText = () => {
+    let text = `${accountType} Account`;
+    if (isTrial) text += " (Trial)";
+    if (daysLeft !== null && daysLeft > 0) text += ` – ${daysLeft} days left`;
+    return text;
   };
 
   return (
@@ -117,15 +138,51 @@ export default function ProfilePage() {
                 aria-label="Activate your account to get listed"
               >
                 <PlusCircle size={18} />
-                Activate Your Account
+                Activate Your Free Trial Account
               </Link>
             </div>
           </div>
         </>
       )}
 
-      {/* 🔹 If profile exists, show profile data */}
-      {profile && (
+      {/* 🔹 If profile exists but expired, show expiry banner */}
+      {profile && isExpired && (
+        <div className="max-w-5xl mx-auto mt-4 p-4 bg-red-50 border border-red-200 rounded-xl text-center">
+          <p className="text-red-800 flex items-center justify-center gap-2 mb-2">
+            <AlertTriangle className="w-5 h-5" aria-hidden="true" />
+            Your {accountType} {isTrial ? 'trial' : 'subscription'} has expired. Upgrade to reactivate your profile!
+          </p>
+          <Link
+            to="/upgrade-account"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg shadow hover:bg-red-600 transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
+            aria-label="Upgrade to reactivate"
+          >
+            <ArrowUpRight size={18} />
+            Upgrade Now
+          </Link>
+        </div>
+      )}
+
+      {/* 🔹 If profile active but expiring soon (trials only), show warning banner */}
+      {profile && !isExpired && isExpiringSoon && (
+        <div className="max-w-5xl mx-auto mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+          <p className="text-yellow-800 flex items-center justify-center gap-2">
+            <Clock className="w-5 h-5" aria-hidden="true" />
+            Your trial ends in {daysLeft} day{daysLeft !== 1 ? 's' : ''}. Upgrade to keep your {accountType} features!
+          </p>
+          <Link
+            to="/upgrade-account"
+            className="inline-flex items-center gap-1 mt-2 px-3 py-1 text-sm bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-300 ml-auto"
+            aria-label="Upgrade before expiry"
+          >
+            <ArrowUpRight size={14} />
+            Upgrade Now
+          </Link>
+        </div>
+      )}
+
+      {/* 🔹 If profile exists and active, show profile data */}
+      {profile && !isExpired && (
         <>
           {/* Banner */}
           <div className="bg-gradient-to-r from-pink-200 to-pink-500 h-48 relative">
@@ -187,11 +244,10 @@ export default function ProfilePage() {
               <div className="flex items-center justify-center gap-4">
                 <span className={`px-4 py-2 rounded-full border font-semibold flex items-center gap-2 ${getAccountBadgeClass(accountType)}`}>
                   {isVerified && <MdVerified className="w-4 h-4 text-pink-500" />}
-                  {accountType} Account
-                  {durationLeft && <span className="text-xs ml-1">({durationLeft} days left)</span>}
+                  {getBadgeText()}
                 </span>
               </div>
-              {!isVerified && (
+              {!isVerified && !isTrial && (
                 <div className="mt-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg">
                   <p className="text-yellow-800 flex items-center gap-2">
                     <AlertTriangle className="w-5 h-5" aria-hidden="true" />
@@ -204,6 +260,22 @@ export default function ProfilePage() {
                   >
                     <ArrowUpRight size={14} />
                     Upgrade Now
+                  </Link>
+                </div>
+              )}
+              {isTrial && (
+                <div className="mt-4 p-4 bg-pink-50 border-l-4 border-pink-400 rounded-r-lg">
+                  <p className="text-pink-800 flex items-center gap-2">
+                    <Clock className="w-5 h-5" aria-hidden="true" />
+                    Enjoying your free trial? Upgrade anytime to continue without interruptions.
+                  </p>
+                  <Link
+                    to="/upgrade-account"
+                    className="inline-flex items-center gap-1 mt-2 px-3 py-1 text-sm bg-pink-500 text-white rounded-md hover:bg-pink-600 transition-colors focus:outline-none focus:ring-2 focus:ring-pink-300"
+                    aria-label="Upgrade from trial"
+                  >
+                    <ArrowUpRight size={14} />
+                    Upgrade to Full
                   </Link>
                 </div>
               )}

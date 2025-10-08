@@ -8,17 +8,17 @@ import { StepReview } from "./steps/StepReview";
 import { useOnboardingStore } from "../../store/useOnboardingStore";
 import axios from "axios";
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";  // ✅ For redirect on success
+import { useNavigate } from "react-router-dom";
 import { showToast } from "../utils/showToast";
 
 export default function OnBoarding() {
   const [validationErrors, setValidationErrors] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);  // Loading state for submit
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState('idle');  // 'idle' | 'pending' | 'success' | 'failed'
-  const [checkoutRequestID, setCheckoutRequestID] = useState(null);  // Track for polling
-  const [intervalId, setIntervalId] = useState(null);  // Track interval for cleanup
-  const [timeoutId, setTimeoutId] = useState(null);  // Track timeout for cleanup
-  const navigate = useNavigate();  // ✅ For redirect on success
+  const [checkoutRequestID, setCheckoutRequestID] = useState(null);
+  const [intervalId, setIntervalId] = useState(null);
+  const [timeoutId, setTimeoutId] = useState(null);
+  const navigate = useNavigate();
   const {
     step,
     setStep,
@@ -29,9 +29,9 @@ export default function OnBoarding() {
     totalSteps,
   } = useOnboardingStore();
 
-  // ✅ Extract userId from localStorage (same as in handleSubmit)
+  // ✅ Extract userId from localStorage
   const authUser = JSON.parse(localStorage.getItem("user"));
-  const userId = authUser?._id;  // Assuming _id is the MongoDB ID; adjust if different (e.g., id)
+  const userId = authUser?._id;
 
   const validateStep = () => {
     let errors = {};
@@ -65,17 +65,15 @@ export default function OnBoarding() {
     }
   };
 
-  // ✅ Go to next step
   const nextStep = () => {
     if (step < totalSteps) setStep(step + 1);
   };
 
-  // ✅ Go to previous step
   const prevStep = () => {
     if (step > 1) setStep(step - 1);
   };
 
-  // ✅ Poll for transaction status
+  // Poll for transaction status (unchanged for payments)
   const pollTransactionStatus = async (checkoutRequestId) => {
     const token = localStorage.getItem("token");
     if (!token) return;
@@ -87,40 +85,23 @@ export default function OnBoarding() {
       });
 
       const transactions = res.data.transactions || [];
-      console.log('📋 Transactions received:', transactions.map(tx => ({ 
-        id: tx._id, 
-        checkout: tx.checkoutRequestID, 
-        status: tx.status 
-      })));
-
       const latestTx = transactions.find(tx => tx.checkoutRequestID === checkoutRequestId);  
-      if (!latestTx) {
-        console.log('❌ Transaction not found in response');
-        return false;  // Not found yet
-      }
-
-      console.log('✅ Found transaction:', { 
-        checkoutRequestID: latestTx.checkoutRequestID, 
-        status: latestTx.status 
-      });
+      if (!latestTx) return false;
 
       if (latestTx.status === 'SUCCESS') {
         console.log('🎉 SUCCESS detected!');
         setPaymentStatus('success');
         showToast("Payment successful! Profile updated.", false);
         setIsSubmitting(false);
-        // ✅ Redirect to /profile after short delay
         setTimeout(() => navigate('/profile'), 2000);
-        return true;  // Signal success to stop interval
+        return true;
       } else if (latestTx.status === 'FAILED' || latestTx.status === 'CANCELLED') {
         console.log('❌ Failure detected:', latestTx.status);
         setPaymentStatus('failed');
         showToast("Payment failed. You can retry below.", true);
         setIsSubmitting(false);
-        return true;  // Stop on fail
+        return true;
       }
-      // Else: Still pending, continue polling
-      console.log('⏳ Still pending:', latestTx.status);
       return false;
     } catch (err) {
       console.error("Polling error:", err);
@@ -128,40 +109,27 @@ export default function OnBoarding() {
     }
   };
 
-  // ✅ Retry payment (re-submit form)
   const handleRetry = () => {
     setPaymentStatus('idle');
     setIsSubmitting(false);
     handleSubmit();  // Re-run submit
   };
 
-  // ✅ Submit to backend
+  // ✅ Submit to backend (updated for trial handling)
   const handleSubmit = async () => {
-    if (isSubmitting) return;  // Prevent double-submit
+    if (isSubmitting) return;
     setIsSubmitting(true);
     setPaymentStatus('idle');
 
     try {
-      // ✅ Pre-submit: Run ALL validators to catch frontend issues
+      // Pre-submit: Run ALL validators
       const allErrors = {};
-      // Personal
-      const personalErrors = validatePersonalInfo(formData.personal || {});
-      Object.assign(allErrors, personalErrors);
-      // Location
-      const locationErrors = validateLocation(formData.location || {});
-      Object.assign(allErrors, locationErrors);
-      // Additional
-      const additionalErrors = validateAdditionalInfo(formData.additional || {});
-      Object.assign(allErrors, additionalErrors);
-      // Services
-      const servicesErrors = validateServices(formData.services || {});
-      Object.assign(allErrors, servicesErrors);
-      // Account Type
-      const accountTypeErrors = validateAccountType(formData.accountType || {});
-      Object.assign(allErrors, accountTypeErrors);
-      // Photos
-      const photosErrors = validatePhotos(formData.photos || [], formData.accountType);
-      Object.assign(allErrors, photosErrors);
+      Object.assign(allErrors, validatePersonalInfo(formData.personal || {}));
+      Object.assign(allErrors, validateLocation(formData.location || {}));
+      Object.assign(allErrors, validateAdditionalInfo(formData.additional || {}));
+      Object.assign(allErrors, validateServices(formData.services || {}));
+      Object.assign(allErrors, validateAccountType(formData.accountType || {}));
+      Object.assign(allErrors, validatePhotos(formData.photos || [], formData.accountType));
 
       if (Object.keys(allErrors).length > 0) {
         console.warn('⚠️ Validation failed - blocking submit:', allErrors);
@@ -203,7 +171,7 @@ export default function OnBoarding() {
         fd.append("services[custom]", formData.services.custom);
       }
 
-      // AccountType
+      // AccountType (frontend sends type/duration; backend handles amount=0 for trial)
       Object.entries(formData.accountType || {}).forEach(([key, value]) => {
         fd.append(`accountType[${key}]`, value);
       });
@@ -211,7 +179,7 @@ export default function OnBoarding() {
       // Photos
       if (Array.isArray(formData.photos)) {
         const photoFiles = formData.photos.filter(photo => photo instanceof File);
-        console.log('📸 Photo Files Ready:', photoFiles.length, 'files:', photoFiles.map(p => p.name));  // Debug
+        console.log('📸 Photo Files Ready:', photoFiles.length);
         if (photoFiles.length === 0) {
           showToast('No photos selected—add at least one to continue.', true);
           setIsSubmitting(false);
@@ -222,18 +190,15 @@ export default function OnBoarding() {
         });
       } 
 
-      // ✅ LOG THE FULL PAYLOAD (FormData can't be JSON.stringified, so iterate)
       console.log('🔍 FormData Entries Being Sent:');
       for (let [key, value] of fd.entries()) {
-        console.log(`  ${key}:`, value instanceof File ? `[File: ${value.name}, size: ${value.size}]` : value);
+        console.log(`  ${key}:`, value instanceof File ? `[File: ${value.name}]` : value);
       }
 
-      // ✅ Check token
       const token = localStorage.getItem("token");
       if (!token) {
         throw new Error('No auth token found - cannot submit');
       }
-      console.log('🔑 Token present:', token ? 'Yes' : 'No');
 
       // Send request (multipart for files)
       const res = await axios.put("http://localhost:5000/api/users/profile", fd, {
@@ -245,13 +210,22 @@ export default function OnBoarding() {
 
       console.log("✅ Profile submission response:", res.data);
 
+      // ✅ NEW: Handle trial activation (first-time, no payment)
+      if (res.data.trialActive) {
+        const type = formData.accountType?.type || 'account';
+        showToast(`Free 7-day ${type} trial activated! Welcome aboard.`, false);
+        setIsSubmitting(false);
+        // Redirect to profile
+        setTimeout(() => navigate('/profile'), 1500);
+        return;  // Early exit—no polling
+      }
+
+      // Existing: If payment required (upgrades)
       if (res.data.requiresPayment) {
-        // Payment required: Set up polling
         setPaymentStatus('pending');
         setCheckoutRequestID(res.data.checkoutRequestID);
         showToast("Payment initiated! Check your M-Pesa for PIN prompt.", false);
         
-        // Stop polling after 5 mins
         const timeoutIdLocal = setTimeout(() => {
           if (paymentStatus === 'pending') {
             if (intervalId) clearInterval(intervalId);
@@ -262,7 +236,6 @@ export default function OnBoarding() {
         }, 300000);  // 5 minutes
         setTimeoutId(timeoutIdLocal);
 
-        // Start polling every 5 seconds
         const interval = setInterval(async () => {
           if (paymentStatus !== 'pending') {
             clearInterval(interval);
@@ -276,38 +249,27 @@ export default function OnBoarding() {
           }
         }, 5000);
 
-        // Set interval ID for cleanup
         setIntervalId(interval);
-
-        return;  // Don't proceed to success yet
+        return;
       }
 
-      // No payment needed: Direct success
+      // No payment/trial: Generic success
       showToast("Profile submitted successfully!", false);
       setIsSubmitting(false);
-      // Optional: Navigate or reset store
+      setTimeout(() => navigate('/profile'), 1500);
     } catch (err) {
-      // ✅ DETAILED ERROR LOGGING
       console.error('💥 Full Error Details:', {
         message: err.message,
-        status: err.response?.status, // Should be 500
-        backendError: err.response?.data, // KEY: Server message, e.g., { error: "Invalid services" }
-        backendStack: err.response?.data?.stack, // If exposed
-        headers: err.response?.headers,
-        requestConfig: {
-          method: err.config?.method,
-          url: err.config?.url,
-          headers: err.config?.headers,
-        },
-        // Re-log FormData if needed (but it's mutated, so from above)
+        status: err.response?.status,
+        backendError: err.response?.data,
       });
-      showToast(`Submit failed: ${err.response?.data?.error || err.message || 'Unknown error'}`, true);
+      showToast(`Submit failed: ${err.response?.data?.message || err.message || 'Unknown error'}`, true);
       setIsSubmitting(false);
       setPaymentStatus('idle');
     }
   };
 
-  // ✅ Cleanup polling on unmount
+  // Cleanup polling on unmount
   useEffect(() => {
     return () => {
       if (intervalId) clearInterval(intervalId);
@@ -315,7 +277,7 @@ export default function OnBoarding() {
     };
   }, [intervalId, timeoutId]);
 
-  // ✅ Steps array
+  // Steps array (unchanged, but Review can show trial note if needed)
   const steps = [
     <StepPersonalInfo
       key="personal"
@@ -374,13 +336,13 @@ export default function OnBoarding() {
       accountType={formData.accountType}
       userId={userId}  
     />,
-    <StepReview key="review" formData={formData} />,
+    <StepReview key="review" formData={formData} />,  // Can add trial note here: "You'll get a free 7-day trial!"
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-rose-50 flex items-center justify-center px-4 py-8">  {/* Pink gradient bg */}
-      <div className="bg-white shadow-2xl rounded-2xl p-6 md:p-10 w-full max-w-4xl border border-pink-100">  {/* Pink border */}
-        {/* ✅ Progress bar */}
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-rose-50 flex items-center justify-center px-4 py-8">
+      <div className="bg-white shadow-2xl rounded-2xl p-6 md:p-10 w-full max-w-4xl border border-pink-100">
+        {/* Progress bar */}
         <div className="mb-6">
           <div className="flex justify-between text-sm font-medium text-gray-600 mb-2">
             <span>
@@ -396,10 +358,10 @@ export default function OnBoarding() {
           </div>
         </div>
 
-        {/* ✅ Current Step */}
+        {/* Current Step */}
         {steps[step - 1]}
 
-        {/* ✅ Navigation Buttons */}
+        {/* Navigation Buttons */}
         <div className="flex justify-between mt-8">
           {step > 1 ? (
             <button
@@ -441,17 +403,16 @@ export default function OnBoarding() {
           )}
         </div>
 
-        {/* ✅ Payment Status Indicator (only show if pending/failed/success) */}
+        {/* Payment Status Indicator */}
         {paymentStatus === 'pending' && (
-          <div className="mt-4 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-xl text-center shadow-md">  {/* Pink-themed yellow */}
+          <div className="mt-4 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-xl text-center shadow-md">
             <p className="text-yellow-800 font-medium">⏳ Awaiting payment confirmation. Check your phone and enter M-Pesa PIN.</p>
             <p className="text-sm text-yellow-700 mt-1">Request ID: {checkoutRequestID}</p>
           </div>
         )}
         {paymentStatus === 'failed' && (
-          <div className="mt-4 p-4 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-xl text-center shadow-md">  {/* Pink-themed red */}
+          <div className="mt-4 p-4 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-xl text-center shadow-md">
             <p className="text-red-800 font-medium">❌ Payment failed. You can retry below.</p>
-            {/* ✅ Retry Button */}
             <button
               onClick={handleRetry}
               className="mt-3 px-6 py-2 bg-gradient-to-r from-pink-600 to-rose-600 text-white rounded-lg hover:from-pink-700 hover:to-rose-700 transition-all font-medium"
@@ -461,7 +422,7 @@ export default function OnBoarding() {
           </div>
         )}
         {paymentStatus === 'success' && (
-          <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl text-center shadow-md">  {/* Pink-themed green for success */}
+          <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl text-center shadow-md">
             <p className="text-green-800 font-medium">✅ Payment successful! Redirecting to profile...</p>
           </div>
         )}
