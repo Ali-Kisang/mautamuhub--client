@@ -31,6 +31,7 @@ const StepAccountType = ({ selected, setSelected }) => {
         "Increased visibility in search results",
       ],
       verified: true,
+      trialNote: "Start with free 7-day Spa trial!",
     },
     {
       type: "VVIP",
@@ -43,6 +44,7 @@ const StepAccountType = ({ selected, setSelected }) => {
         "Priority placement in category search",
       ],
       verified: true,
+      trialNote: "Start with free 7-day VVIP trial!",
     },
     {
       type: "VIP",
@@ -56,6 +58,7 @@ const StepAccountType = ({ selected, setSelected }) => {
         "Featured placement in local search",
       ],
       verified: false,
+      trialNote: "Start with free 7-day VIP trial!",
     },
     {
       type: "Regular",
@@ -69,6 +72,7 @@ const StepAccountType = ({ selected, setSelected }) => {
         "Basic search visibility",
       ],
       verified: false,
+      trialNote: "Start with free 7-day Regular trial!",
     },
   ];
 
@@ -78,14 +82,12 @@ const StepAccountType = ({ selected, setSelected }) => {
     setSelectedDurations((prev) => ({ ...prev, [type]: duration }));
   };
 
-  const handleSelection = (type, amount, duration) => {
-    setSelected({ type, amount, duration }); // ✅ store selected accountType object
-    const account = accountTypes.find((acc) => acc.type === type);
-    if (account) {
-      showToast(
-        `✅ You selected a ${type} account for ${duration} days. ${account.details[0]}`
-      );
-    }
+  const handleSelection = (type) => {
+    // ✅ For standalone trial: Override to free 7-day (backend confirms first-time)
+    setSelected({ type, amount: 0, duration: 7 }); 
+    showToast(
+      `✅ ${accountTypes.find((acc) => acc.type === type).trialNote} After trial, upgrade to any plan (Regular, VIP, VVIP, or Spa) anytime!`
+    );
   };
 
   return (
@@ -93,86 +95,87 @@ const StepAccountType = ({ selected, setSelected }) => {
       <h2 className="text-2xl text-pink-600 font-semibold mb-6">
         Select Your Account Type
       </h2>
+      <p className="text-gray-600 mb-6 text-center">
+        Choose your starting tier—get a free 7-day trial! Upgrade later to extend with paid plans.
+      </p>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {accountTypes.map((account, index) => {
-          const selectedDuration = selectedDurations[account.type] || 3;
-          const amount = account.pricing[selectedDuration];
+        {accountTypes.map((account, index) => (
+          <motion.div
+            key={index}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className={`relative p-6 border rounded-lg shadow-md transition-all cursor-pointer ${
+              selected?.type === account.type
+                ? "border-pink-300 shadow-lg"
+                : "border-gray-300"
+            }`}
+            onClick={() => handleSelection(account.type)}  // ✅ Direct select for trial
+          >
+            {account.type === "VIP" && (
+              <span className="absolute top-2 left-2 bg-pink-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                MOST POPULAR
+              </span>
+            )}
 
-          return (
-            <motion.div
-              key={index}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className={`relative p-6 border rounded-lg shadow-md transition-all cursor-pointer ${
-                selected?.type === account.type
-                  ? "border-pink-300 shadow-lg"
-                  : "border-gray-300"
-              }`}
-            >
-              {account.type === "VIP" && (
-                <span className="absolute top-2 left-2 bg-pink-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
-                  MOST POPULAR
-                </span>
-              )}
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xl font-bold">{account.type}</h3>
+              <FaCircleDot
+                className={`text-lg rounded-full ${
+                  selected?.type === account.type
+                    ? "text-white bg-pink-600"
+                    : "text-pink-600 bg-gray-100"
+                }`}
+              />
+            </div>
 
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xl font-bold">{account.type}</h3>
-                <FaCircleDot
-                  className={`text-lg rounded-full ${
-                    selected?.type === account.type
-                      ? "text-white bg-pink-600"
-                      : "text-pink-600 bg-gray-100"
-                  }`}
-                />
-              </div>
+            {/* ✅ Trial Note (standalone free start) */}
+            <div className="bg-pink-50 border border-pink-200 rounded-md p-3 mb-4">
+              <p className="text-pink-800 font-medium text-sm text-center">
+                {account.trialNote}
+              </p>
+            </div>
 
-              <div className="mb-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Select Duration:
-                </label>
-                <select
-                  className="w-full border rounded px-2 py-1"
-                  value={selectedDuration}
-                  onChange={(e) =>
-                    handleDurationChange(account.type, parseInt(e.target.value))
-                  }
-                >
-                  {Object.keys(account.pricing).map((days) => (
-                    <option key={days} value={days}>
-                      {days} Days - Ksh. {account.pricing[days]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <button
-                className="w-full bg-pink-600 text-gray-800 py-2 rounded-md mb-4"
-                onClick={() =>
-                  handleSelection(account.type, amount, selectedDuration)
-                }
-              >
-                SELECT
-              </button>
-
-              <div className="flex items-center mb-4">
-                {account.verified && (
-                  <MdVerified className="text-pink-600 mr-2 text-xl" />
-                )}
-                <p className="text-sm">
-                  {account.verified ? "Verified Account" : "Not Verified"}
-                </p>
-              </div>
-
-              <ul className="text-sm text-gray-600 list-disc list-inside">
-                {account.details.map((detail, i) => (
-                  <li className="m-2" key={i}>
-                    {detail}
-                  </li>
+            {/* Paid Pricing (post-trial reference) */}
+            <div className="mb-4 text-center">
+              <p className="text-xs text-gray-500 mb-1">After trial, renew for:</p>
+              <div className="space-y-1">
+                {Object.entries(account.pricing).map(([days, price]) => (
+                  <p key={days} className="text-xs text-gray-600">
+                    {days} days: Ksh {price}
+                  </p>
                 ))}
-              </ul>
-            </motion.div>
-          );
-        })}
+              </div>
+            </div>
+
+            {/* ✅ Button for trial start */}
+            <button
+              className="w-full bg-gradient-to-r from-pink-500 to-pink-600 text-white py-2 rounded-md mb-4 font-medium hover:from-pink-600 hover:to-pink-700 transition-colors"
+              disabled={selected?.type === account.type}  // Disable if selected
+            >
+              {selected?.type === account.type ? "Selected (Free Trial)" : "Start Free Trial"}
+            </button>
+
+            <div className="flex items-center mb-4">
+              {account.verified && (
+                <MdVerified className="text-pink-600 mr-2 text-xl" />
+              )}
+              <p className="text-sm">
+                {account.verified ? "Verified Account" : "Not Verified"}
+              </p>
+            </div>
+
+            <ul className="text-sm text-gray-600 list-disc list-inside space-y-1">
+              {account.details.map((detail, i) => (
+                <li className="m-0" key={i}>
+                  {detail}
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+        ))}
+      </div>
+      <div className="mt-6 text-center text-sm text-gray-500">
+        <p>After your trial, upgrade to Regular, VIP, VVIP, or Spa anytime via your profile.</p>
       </div>
     </div>
   );

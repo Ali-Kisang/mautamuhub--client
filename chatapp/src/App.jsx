@@ -70,6 +70,7 @@ import PaymentMethods from "./constants/components/PaymentMethods";
 import { useEffect } from "react";
 import Loader from "./pages/Loader";
 import EditProfile from "./pages/EditProfile";
+import UpgradeAccount from "./components/onboading/steps/UpgradeAccount";
 
  function PrivateRoute({ children }) {
   const { user } = useAuthStore();
@@ -128,6 +129,7 @@ export default function App() {
   }
 />
           <Route path="/profile/:id" element={<ProfileDetailsPage />} />
+          <Route path="/upgrade-account" element={<UpgradeAccount />} />
           
           <Route path="/chat" element={<PrivateRoute><ChatPage /></PrivateRoute>} />
            <Route path="/search" element={<SearchPage />} />

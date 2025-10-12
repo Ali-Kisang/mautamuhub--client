@@ -1,7 +1,7 @@
 import { create } from "zustand";
-import { subscribeWithSelector } from "zustand/middleware"; // ✅ Add for subscription if needed
+import { subscribeWithSelector } from "zustand/middleware"; 
 import api from "../utils/axiosInstance";
-import { socket } from "../utils/socket"; // ✅ Import socket
+import { socket } from "../utils/socket"; 
 
 import { showToast } from "../components/utils/showToast";
 import { registerSW } from "../utils/registerSW";
@@ -58,29 +58,31 @@ export const useAuthStore = create(
         }
       },
 
-      login: async ({ email, password }) => {
-        try {
-          set({ loading: true });
-          const { data } = await api.post("/auth/login", { email, password });
+     login: async ({ email, password }) => {
+  try {
+    set({ loading: true });
+    const { data } = await api.post("/auth/login", { email, password });
 
-          const normalizedUser = {
-            ...data.user,
-            username: data.user?.username?.trim() || "User",
-          };
+    const normalizedUser = {
+      ...data.user,
+      username: data.user?.username?.trim() || "User",
+    };
 
-          set({ user: normalizedUser, token: data.token, loading: false });
-          localStorage.setItem("user", JSON.stringify(normalizedUser));
-          localStorage.setItem("token", data.token);
-          showToast(`Welcome back ${normalizedUser.username} 👋`, false);
+    set({ user: normalizedUser, token: data.token, loading: false });
+    localStorage.setItem("user", JSON.stringify(normalizedUser));
+    localStorage.setItem("token", data.token);
+    showToast(`Welcome back ${normalizedUser.username} 👋`, false);
 
-          // ✅ Register SW and prompt/subscribe on login
-          await get().initPushNotifications();
-        } catch (err) {
-          set({ loading: false });
-          showToast(err.response?.data?.msg || "Login failed!", true);
-          throw err;
-        }
-      },
+    // ✅ Register SW and prompt/subscribe on login
+    await get().initPushNotifications();
+
+    return normalizedUser; // 🔹 ADD THIS: Return user for component to use
+  } catch (err) {
+    set({ loading: false });
+    showToast(err.response?.data?.msg || "Login failed!", true);
+    throw err;
+  }
+},
 
       logout: () => {
         set({ user: null, token: null, loading: false, onlineUsers: [] });
@@ -91,7 +93,7 @@ export const useAuthStore = create(
 
       setOnlineUsers: (users) => {
         set({ onlineUsers: users });
-        console.log("Store updated onlineUsers:", users.length); // Debug
+        console.log("Store updated onlineUsers:", users.length); 
       },
 
       // ✅ New: Init push notifications (perm + sub)

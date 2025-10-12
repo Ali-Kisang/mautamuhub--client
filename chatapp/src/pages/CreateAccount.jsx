@@ -6,8 +6,7 @@ export default function CreateAccount() {
   const nav = useNavigate();
 
   const handleContinue = () => {
-    // handle logic here, e.g., navigate to payment or next step
-    nav("/onboading"); // or wherever you want to send them
+    nav("/onboading"); 
   };
 
   return (
@@ -52,7 +51,7 @@ export default function CreateAccount() {
         <button
           onClick={handleContinue}
           disabled={!agree}
-          className={`w-full py-3 rounded-xl text-lg font-semibold transition-colors duration-200 ${
+          className={`w-full py-3 hover:cursor-pointer rounded-xl text-lg font-semibold transition-colors duration-200 ${
             agree
               ? "bg-pink-600 text-white hover:bg-pink-700"
               : "bg-gray-300 text-gray-500 cursor-not-allowed"

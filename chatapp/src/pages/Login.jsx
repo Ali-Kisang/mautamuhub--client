@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { TailSpin } from "react-loader-spinner";
 import { EyeIcon, EyeOffIcon } from "@heroicons/react/outline";
-import { useAuthStore } from "../store/useAuthStore"; // ✅ use central store
+import { useAuthStore } from "../store/useAuthStore";
 import { showToast } from "../components/utils/showToast";
 
 export default function Login() {
@@ -11,7 +11,9 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   const nav = useNavigate();
+  // 🔹 UPDATED: Split selectors to avoid object reference issues—no need for shallow
   const login = useAuthStore((s) => s.login);
+  const user = useAuthStore((s) => s.user);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -21,14 +23,8 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      const user = await login(form); 
-
-      
-      if (!user?.hasProfile) {
-        nav("/create-account"); 
-      } else {
-        nav("/"); 
-      }
+      await login(form);
+      showToast("Login successful!", false);
     } catch (err) {
       console.error(err);
       showToast("Login failed. Check credentials.", true);
@@ -36,6 +32,16 @@ export default function Login() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (user) {
+      if (!user.hasProfile) {
+        nav("/profile", { replace: true });
+      } else {
+        nav("/", { replace: true });
+      }
+    }
+  }, [user, nav]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-200 via-pink-300 to-pink-400 p-4">

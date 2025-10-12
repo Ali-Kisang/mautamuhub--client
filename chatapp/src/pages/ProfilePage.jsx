@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Cloudinary } from "@cloudinary/url-gen";
 import { AdvancedImage } from "@cloudinary/react";
@@ -9,9 +9,7 @@ import { useAuthStore } from "../store/useAuthStore";
 import ProfileLayout from "./ProfileLayout";
 import { DotStream } from "ldrs/react";
 
-// Lucide icons
 import { User, MapPin, Phone, Heart, DollarSign, Camera, PlusCircle, AlertTriangle, Edit2, ArrowUpRight, Clock } from "lucide-react";
-// Material Design icon
 import { MdVerified } from "react-icons/md";
 import { Crown } from "lucide-react";
 
@@ -20,38 +18,14 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isPaying, setIsPaying] = useState(false);
+  const intervalRef = useRef(null);
 
   const cld = new Cloudinary({
     cloud: { cloudName: "dcxggvejn" },
   });
 
-  useEffect(() => {
-    const fetchProfileStatus = async () => {
-      if (!user?._id) {
-        setError("You are not logged in.");
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const res = await api.get("/users/check-profile");
-        if (res.data.hasProfile) {
-          setProfile(res.data.profile);
-        } else {
-          setProfile(null);
-        }
-      } catch (err) {
-        console.error("Check profile error:", err);
-        setError("Could not check profile status");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProfileStatus();
-  }, [user?._id]);
-
-  // ✅ Calculate days left from expiryDate
+  // Helper functions
   const getDaysLeft = (expiryDate) => {
     if (!expiryDate) return null;
     const now = new Date();
@@ -66,6 +40,26 @@ export default function ProfilePage() {
     return `https://res.cloudinary.com/dcxggvejn/image/upload/${avatar}`;
   };
 
+  const fetchProfile = useCallback(async () => {
+    if (!user?._id) {
+      setError("You are not logged in.");
+      return;
+    }
+
+    try {
+      const res = await api.get("/users/check-profile");
+      if (res.data.hasProfile) {
+        setProfile(res.data.profile);
+      } else {
+        setProfile(null);
+      }
+    } catch (err) {
+      console.error("Check profile error:", err);
+      setError("Could not check profile status");
+    }
+  }, [user?._id]);
+
+  // Derived state
   const isVerified = profile?.accountType?.type === "VVIP" || profile?.accountType?.type === "Spa";
   const accountType = profile?.accountType?.type || "Regular";
   const isTrial = profile?.isTrial || false;
@@ -89,6 +83,61 @@ export default function ProfilePage() {
     if (isTrial) text += " (Trial)";
     if (daysLeft !== null && daysLeft > 0) text += ` – ${daysLeft} days left`;
     return text;
+  };
+
+  useEffect(() => {
+    const initFetch = async () => {
+      setLoading(true);
+      await fetchProfile();
+      setLoading(false);
+    };
+
+    initFetch();
+  }, [fetchProfile]);
+
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (profile && !isExpired && isPaying) {
+      setIsPaying(false);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+  }, [profile, isExpired, isPaying]);
+
+  const handlePayNow = async () => {
+    if (isPaying || !user?._id) return;
+
+    setIsPaying(true);
+    setError(null);
+
+    try {
+      await api.post("/users/payments/initiate", { accountType: profile?.accountType?.type });
+      intervalRef.current = setInterval(async () => {
+        await fetchProfile();
+      }, 3000);
+
+      setTimeout(() => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+          setIsPaying(false);
+        }
+      }, 300000); // 5 minutes timeout
+    } catch (err) {
+      console.error("Payment initiation error:", err);
+      setError("Failed to initiate payment. Please try again.");
+      setIsPaying(false);
+    }
   };
 
   return (
@@ -150,16 +199,21 @@ export default function ProfilePage() {
         <div className="max-w-5xl mx-auto mt-4 p-4 bg-red-50 border border-red-200 rounded-xl text-center">
           <p className="text-red-800 flex items-center justify-center gap-2 mb-2">
             <AlertTriangle className="w-5 h-5" aria-hidden="true" />
-            Your {accountType} {isTrial ? 'trial' : 'subscription'} has expired. Upgrade to reactivate your profile!
+            Your {accountType} {isTrial ? 'trial' : 'subscription'} has expired. Pay now to stay online!
           </p>
-          <Link
-            to="/upgrade-account"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg shadow hover:bg-red-600 transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-            aria-label="Upgrade to reactivate"
+          <button
+            onClick={handlePayNow}
+            disabled={isPaying}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg shadow hover:bg-red-600 disabled:bg-red-300 transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
+            aria-label="Pay now to stay online"
           >
-            <ArrowUpRight size={18} />
-            Upgrade Now
-          </Link>
+            {isPaying ? (
+              <l-dot-stream size="20" speed="1.5" color="white"></l-dot-stream>
+            ) : (
+              <DollarSign size={18} />
+            )}
+            {isPaying ? "Processing Payment..." : "Pay Now"}
+          </button>
         </div>
       )}
 
