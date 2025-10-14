@@ -10,6 +10,7 @@ import axios from "axios";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { showToast } from "../utils/showToast";
+import Footer from "../../pages/Footer";
 
 export default function OnBoarding() {
   const [validationErrors, setValidationErrors] = useState({});
@@ -340,6 +341,7 @@ export default function OnBoarding() {
   ];
 
   return (
+    <>
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-rose-50 flex items-center justify-center px-4 py-8">
       <div className="bg-white shadow-2xl rounded-2xl p-6 md:p-10 w-full max-w-4xl border border-pink-100">
         {/* Progress bar */}
@@ -428,5 +430,7 @@ export default function OnBoarding() {
         )}
       </div>
     </div>
+    <Footer/>
+     </>
   );
 }

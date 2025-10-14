@@ -8,10 +8,12 @@ import api from "../../../utils/axiosInstance";
 import { showToast } from "../../utils/showToast";
 import { DotStream } from "ldrs/react";
 import { MdVerified } from "react-icons/md";
+import { DollarSign } from "lucide-react"; // ✅ NEW: For balance icon
 
 export default function UpgradeAccount() {
   const { user } = useAuthStore();
   const [currentProfile, setCurrentProfile] = useState(null);
+  const [balance, setBalance] = useState(0); // ✅ NEW: Balance state
   const [loading, setLoading] = useState(true);
   const [paymentStatus, setPaymentStatus] = useState('idle');  
   const [checkoutRequestID, setCheckoutRequestID] = useState(null);
@@ -71,6 +73,7 @@ export default function UpgradeAccount() {
       try {
         const res = await api.get("/users/check-profile");
         setCurrentProfile(res.data.hasProfile ? res.data.profile : null);
+        setBalance(res.data.balance || 0); // ✅ NEW: Set balance from response
       } catch (err) {
         console.error("Fetch profile error:", err);
         showToast("Could not load profile status", true);
@@ -84,64 +87,64 @@ export default function UpgradeAccount() {
 
   // Poll for transaction status - Updated to use dedicated endpoint for direct query by CheckoutRequestID
   const pollTransactionStatus = async (checkoutRequestId) => {
-  const token = localStorage.getItem("token");
-  if (!token) return false;
+    const token = localStorage.getItem("token");
+    if (!token) return false;
 
-  try {
-    // New endpoint: /api/payments/transaction-status?checkoutRequestID=...
-    const res = await api.get(`/payments/transaction-status?checkoutRequestID=${checkoutRequestId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const latestTx = res.data.transaction;  
-    console.log('Polling tx:', latestTx); 
-    if (!latestTx) return false;
+    try {
+      // New endpoint: /api/payments/transaction-status?checkoutRequestID=...
+      const res = await api.get(`/payments/transaction-status?checkoutRequestID=${checkoutRequestId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const latestTx = res.data.transaction;  
+      console.log('Polling tx:', latestTx); 
+      if (!latestTx) return false;
 
-    // Safeguard: Ensure this is the correct transaction (prevents old successes from interfering)
-    if (latestTx.CheckoutRequestID !== checkoutRequestId) {
-      console.warn('Transaction ID mismatch! Expected:', checkoutRequestId, 'Got:', latestTx.CheckoutRequestID);
-      return false; // Continue polling—don't trust mismatched tx
-    }
-
-    const expectedAmount = accountTiers.find(t => t.type === selectedType)?.pricing[selectedDurations[selectedType]];
-    const expectedType = selectedType;
-    if (latestTx.Amount !== expectedAmount || latestTx.accountType !== expectedType) {
-      console.warn('Transaction details mismatch! Expected amount:', expectedAmount, 'type:', expectedType, 'Got:', latestTx.Amount, latestTx.accountType);
-      return false; // Mismatch—likely wrong tx, continue
-    }
-
-    // Robust check: Prioritize M-Pesa resultCode if available (from callback), fallback to status
-    const resultCode = latestTx.resultCode; // Safe access
-    const resultDesc = latestTx.resultDesc;
-    const status = latestTx.status;
-
-    const isSuccess = resultCode === 0 || status === 'SUCCESS';
-    const isFailure = (resultCode != null && resultCode !== 0) || // Only if defined and non-zero
-                      status === 'FAILED' || status === 'CANCELLED' ||
-                      (resultDesc && (resultDesc.includes('No response') || resultDesc.includes('Request Cancelled')));
-
-    console.log('Status check:', { status, resultCode, resultDesc, isSuccess, isFailure, expectedAmount, expectedType }); // Enhanced debug
-
-    if (isSuccess) {
-      // Prevent premature success before user has time to enter PIN (min 10 seconds after initiation)
-      if (pollStartTime && Date.now() - pollStartTime < 10000) {
-        console.log('Success detected but too early—continuing poll');
-        return false; // Continue polling
+      // Safeguard: Ensure this is the correct transaction (prevents old successes from interfering)
+      if (latestTx.CheckoutRequestID !== checkoutRequestId) {
+        console.warn('Transaction ID mismatch! Expected:', checkoutRequestId, 'Got:', latestTx.CheckoutRequestID);
+        return false; // Continue polling—don't trust mismatched tx
       }
-      setPaymentStatus('success');
-      showToast(`Upgraded to ${selectedType} successfully!`, false);
-      setTimeout(() => navigate('/profile'), 2000);
-      return true;
-    } else if (isFailure) {
-      setPaymentStatus('failed');
-      showToast("Payment failed. You can retry below.", true);
-      return true;
+
+      const expectedAmount = accountTiers.find(t => t.type === selectedType)?.pricing[selectedDurations[selectedType]];
+      const expectedType = selectedType;
+      if (latestTx.Amount !== expectedAmount || latestTx.accountType !== expectedType) {
+        console.warn('Transaction details mismatch! Expected amount:', expectedAmount, 'type:', expectedType, 'Got:', latestTx.Amount, latestTx.accountType);
+        return false; // Mismatch—likely wrong tx, continue
+      }
+
+      // Robust check: Prioritize M-Pesa resultCode if available (from callback), fallback to status
+      const resultCode = latestTx.resultCode; // Safe access
+      const resultDesc = latestTx.resultDesc;
+      const status = latestTx.status;
+
+      const isSuccess = resultCode === 0 || status === 'SUCCESS';
+      const isFailure = (resultCode != null && resultCode !== 0) || // Only if defined and non-zero
+                        status === 'FAILED' || status === 'CANCELLED' ||
+                        (resultDesc && (resultDesc.includes('No response') || resultDesc.includes('Request Cancelled')));
+
+      console.log('Status check:', { status, resultCode, resultDesc, isSuccess, isFailure, expectedAmount, expectedType }); // Enhanced debug
+
+      if (isSuccess) {
+        // Prevent premature success before user has time to enter PIN (min 10 seconds after initiation)
+        if (pollStartTime && Date.now() - pollStartTime < 10000) {
+          console.log('Success detected but too early—continuing poll');
+          return false; // Continue polling
+        }
+        setPaymentStatus('success');
+        showToast(`Upgraded to ${selectedType} successfully! Proration applied via wallet.`, false);
+        setTimeout(() => navigate('/profile'), 2000);
+        return true;
+      } else if (isFailure) {
+        setPaymentStatus('failed');
+        showToast("Payment failed. You can retry below.", true);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error("Polling error:", err);
+      return false;
     }
-    return false;
-  } catch (err) {
-    console.error("Polling error:", err);
-    return false;
-  }
-};
+  };
 
   const handleRetry = () => {
     setPaymentStatus('idle');
@@ -184,7 +187,7 @@ export default function UpgradeAccount() {
       if (res.data.requiresPayment) {
         setCheckoutRequestID(res.data.checkoutRequestID);
         setPollStartTime(Date.now()); // Start timing for minimum PIN entry delay
-        showToast("Payment initiated! Check your M-Pesa for PIN prompt.", false);
+        showToast("Payment initiated! Check your M-Pesa for PIN prompt. Proration will be calculated after.", false);
         
         const timeoutIdLocal = setTimeout(() => {
           if (paymentStatus === 'pending') {
@@ -277,6 +280,11 @@ export default function UpgradeAccount() {
             {isOnTrial && (
               <p className="text-sm text-blue-600 mt-2">Standalone trial active—upgrade anytime to Regular or higher!. You cannot upgrade your current account(Selected) you can either Upgrade or degrade the account type.</p>
             )}
+            {/* ✅ NEW: Balance display */}
+            <p className="text-sm text-gray-600 mt-2 flex items-center justify-center gap-1">
+              <DollarSign className="w-4 h-4" />
+              Wallet Balance: Ksh {balance}
+            </p>
           </div>
         )}
 
@@ -367,7 +375,7 @@ export default function UpgradeAccount() {
         {selectedType && (
           <div className="bg-white rounded-xl shadow-sm p-6 text-center mb-8">
             <h3 className="text-xl font-semibold mb-4">Ready to upgrade to {selectedType}?</h3>
-            <p className="text-gray-600 mb-4">Standalone trial ends soon—choose duration and pay for {selectedDurations[selectedType]} days.</p>
+            <p className="text-gray-600 mb-4">Standalone trial ends soon—choose duration and pay for {selectedDurations[selectedType]} days. Proration will be applied automatically based on remaining days.</p>
             <button
               onClick={handleUpgrade}
               disabled={paymentStatus === 'pending'}
@@ -379,6 +387,11 @@ export default function UpgradeAccount() {
               <CreditCard className="w-5 h-5" />
               {paymentStatus === 'pending' ? "Processing Payment..." : `Upgrade for Ksh ${accountTiers.find(t => t.type === selectedType)?.pricing[selectedDurations[selectedType]]}`}
             </button>
+            {/* ✅ NEW: Balance display in CTA */}
+            <p className="text-sm text-gray-600 mt-2 flex items-center justify-center gap-1">
+              <DollarSign className="w-4 h-4" />
+              Current Balance: Ksh {balance}
+            </p>
           </div>
         )}
 
@@ -404,8 +417,8 @@ export default function UpgradeAccount() {
         )}
         {paymentStatus === 'success' && (
           <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center" role="status" aria-live="polite">
-            <p className="text-green-800 font-medium mb-2"> Upgrade successful!</p>
-            <p className="text-sm text-green-700">Redirecting to your profile...</p>
+            <p className="text-green-800 font-medium mb-2">✅ Upgrade successful!</p>
+            <p className="text-sm text-green-700">Proration applied. Redirecting to your profile...</p>
           </div>
         )}
 

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Cloudinary } from "@cloudinary/url-gen";
 import { AdvancedImage } from "@cloudinary/react";
 import { auto } from "@cloudinary/url-gen/actions/resize";
@@ -9,16 +9,18 @@ import { useAuthStore } from "../store/useAuthStore";
 import ProfileLayout from "./ProfileLayout";
 import { DotStream } from "ldrs/react";
 
-import { User, MapPin, Phone, Heart, DollarSign, Camera, PlusCircle, AlertTriangle, Edit2, ArrowUpRight, Clock } from "lucide-react";
+import { User, MapPin, Phone, Heart, DollarSign, Camera, PlusCircle, AlertTriangle, Edit2, ArrowUpRight, Clock, Crown } from "lucide-react";
 import { MdVerified } from "react-icons/md";
-import { Crown } from "lucide-react";
 
 export default function ProfilePage() {
   const { user } = useAuthStore();
+  const [searchParams] = useSearchParams();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isPaying, setIsPaying] = useState(false);
+  const [balance, setBalance] = useState(0);
+  const [prorateAmount, setProrateAmount] = useState(0);
   const intervalRef = useRef(null);
 
   const cld = new Cloudinary({
@@ -50,8 +52,10 @@ export default function ProfilePage() {
       const res = await api.get("/users/check-profile");
       if (res.data.hasProfile) {
         setProfile(res.data.profile);
+        setBalance(res.data.balance || res.data.profile.user?.balance || 0);
       } else {
         setProfile(null);
+        setBalance(res.data.balance || 0);
       }
     } catch (err) {
       console.error("Check profile error:", err);
@@ -59,13 +63,24 @@ export default function ProfilePage() {
     }
   }, [user?._id]);
 
+  // ✅ NEW: Handle prorate link from email (query params)
+  useEffect(() => {
+    const userId = searchParams.get('userId');
+    const amount = searchParams.get('amount');
+    const newType = searchParams.get('newType');
+    if (userId && amount && newType && userId === user?._id) {
+      setProrateAmount(parseInt(amount));
+      handleProratePayment(); // Auto-initiate prorate if on this page
+    }
+  }, [searchParams, user?._id]);
+
   // Derived state
   const isVerified = profile?.accountType?.type === "VVIP" || profile?.accountType?.type === "Spa";
   const accountType = profile?.accountType?.type || "Regular";
   const isTrial = profile?.isTrial || false;
   const daysLeft = getDaysLeft(profile?.expiryDate);
-  const isExpiringSoon = daysLeft > 0 && daysLeft <= 3 && isTrial;  // Warn for trials only
-  const isExpired = profile?.active === false;  // Backend sets active: false on expiry
+  const isExpiringSoon = daysLeft > 0 && daysLeft <= 3 && isTrial;
+  const isExpired = profile?.active === false;
 
   const getAccountBadgeClass = (type) => {
     switch (type) {
@@ -77,11 +92,16 @@ export default function ProfilePage() {
     }
   };
 
-  // ✅ Badge text with trial indicator
+  // ✅ UPDATED: Badge text with balance next to days (always show if balance > 0)
   const getBadgeText = () => {
     let text = `${accountType} Account`;
     if (isTrial) text += " (Trial)";
-    if (daysLeft !== null && daysLeft > 0) text += ` – ${daysLeft} days left`;
+    if (daysLeft !== null && daysLeft > 0) {
+      text += ` – ${daysLeft} days left`;
+      text += ` (Balance: Ksh ${balance})`;
+    } else if (balance > 0) {
+      text += ` (Balance: Ksh ${balance})`; // Show standalone if no days
+    }
     return text;
   };
 
@@ -111,9 +131,11 @@ export default function ProfilePage() {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
+      fetchProfile(); // Refetch to update balance/profile after payment
     }
-  }, [profile, isExpired, isPaying]);
+  }, [profile, isExpired, isPaying, fetchProfile]);
 
+  // ✅ UPDATED: handlePayNow for extension/renewal (send duration for backend proration)
   const handlePayNow = async () => {
     if (isPaying || !user?._id) return;
 
@@ -121,7 +143,12 @@ export default function ProfilePage() {
     setError(null);
 
     try {
-      await api.post("/users/payments/initiate", { accountType: profile?.accountType?.type });
+      const duration = profile?.accountType?.duration || 30; // Default 30 days for extension
+      await api.post("/users/payments/initiate", { 
+        accountType: profile?.accountType?.type,
+        duration,
+        amount: getAmountForType(profile?.accountType?.type, duration) // Send amount for full extension
+      });
       intervalRef.current = setInterval(async () => {
         await fetchProfile();
       }, 3000);
@@ -138,6 +165,46 @@ export default function ProfilePage() {
       setError("Failed to initiate payment. Please try again.");
       setIsPaying(false);
     }
+  };
+
+  // ✅ NEW: Handle prorate payment from email link
+  const handleProratePayment = async () => {
+    if (isPaying || prorateAmount === 0) return;
+
+    setIsPaying(true);
+    setError(null);
+
+    try {
+      // Call prorate endpoint
+      const res = await api.get(`/payments/prorate-upgrade?userId=${user._id}&amount=${prorateAmount}&newType=VIP`); // Default newType
+      if (res.data.requiresPayment) {
+        intervalRef.current = setInterval(async () => {
+          await fetchProfile();
+        }, 3000);
+        setTimeout(() => {
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+            setIsPaying(false);
+          }
+        }, 300000);
+      }
+    } catch (err) {
+      console.error("Prorate payment error:", err);
+      setError("Failed to initiate prorate payment.");
+      setIsPaying(false);
+    }
+  };
+
+  // ✅ NEW: Get amount for extension (match tier pricing)
+  const getAmountForType = (type, duration = 30) => {
+    const rates = {
+      Regular: { 3: 1, 7: 650, 15: 1250, 30: 1800 },
+      VIP: { 3: 450, 7: 850, 15: 1650, 30: 2800 },
+      VVIP: { 3: 500, 7: 1150, 15: 2300, 30: 3800 },
+      Spa: { 3: 800, 7: 1350, 15: 2650, 30: 4800 },
+    };
+    return rates[type]?.[duration] || 1800;
   };
 
   return (
@@ -199,20 +266,20 @@ export default function ProfilePage() {
         <div className="max-w-5xl mx-auto mt-4 p-4 bg-red-50 border border-red-200 rounded-xl text-center">
           <p className="text-red-800 flex items-center justify-center gap-2 mb-2">
             <AlertTriangle className="w-5 h-5" aria-hidden="true" />
-            Your {accountType} {isTrial ? 'trial' : 'subscription'} has expired. Pay now to stay online!
+            Your {accountType} {isTrial ? 'trial' : 'subscription'} has expired. Pay now to extend {profile?.accountType?.duration || 30} days! (Balance: Ksh {balance})
           </p>
           <button
-            onClick={handlePayNow}
+            onClick={handlePayNow} 
             disabled={isPaying}
             className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg shadow hover:bg-red-600 disabled:bg-red-300 transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-            aria-label="Pay now to stay online"
+            aria-label="Extend subscription"
           >
             {isPaying ? (
               <l-dot-stream size="20" speed="1.5" color="white"></l-dot-stream>
             ) : (
               <DollarSign size={18} />
             )}
-            {isPaying ? "Processing Payment..." : "Pay Now"}
+            {isPaying ? "Processing Extension..." : "Extend Now"}
           </button>
         </div>
       )}
@@ -222,16 +289,24 @@ export default function ProfilePage() {
         <div className="max-w-5xl mx-auto mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
           <p className="text-yellow-800 flex items-center justify-center gap-2">
             <Clock className="w-5 h-5" aria-hidden="true" />
-            Your trial ends in {daysLeft} day{daysLeft !== 1 ? 's' : ''}. Upgrade to keep your {accountType} features!
+            Your trial ends in {daysLeft} day{daysLeft !== 1 ? 's' : ''} (Balance: Ksh {balance}). Extend or upgrade to keep your {accountType} features!
           </p>
-          <Link
-            to="/upgrade-account"
-            className="inline-flex items-center gap-1 mt-2 px-3 py-1 text-sm bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-300 ml-auto"
-            aria-label="Upgrade before expiry"
-          >
-            <ArrowUpRight size={14} />
-            Upgrade Now
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-2 mt-2 justify-center">
+            <button
+              onClick={handlePayNow} // Extension
+              className="px-3 py-1 text-sm bg-yellow-500 text-white rounded-md hover:bg-yellow-600"
+            >
+              Extend Trial
+            </button>
+            <Link
+              to="/upgrade-account"
+              className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-yellow-600 text-white rounded-md hover:bg-yellow-700"
+              aria-label="Upgrade before expiry"
+            >
+              <ArrowUpRight size={14} />
+              Upgrade Now
+            </Link>
+          </div>
         </div>
       )}
 
@@ -305,7 +380,7 @@ export default function ProfilePage() {
                 <div className="mt-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg">
                   <p className="text-yellow-800 flex items-center gap-2">
                     <AlertTriangle className="w-5 h-5" aria-hidden="true" />
-                    You're not verified. Upgrade to VIP or VVIP for better visibility and priority features!
+                    You're not verified. Upgrade to VVIP or Spa for better visibility and priority features!
                   </p>
                   <Link
                     to="/upgrade-account"

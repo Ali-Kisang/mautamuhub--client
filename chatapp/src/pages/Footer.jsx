@@ -1,7 +1,7 @@
 import { FaXTwitter } from "react-icons/fa6";
 import { FaTelegram, FaFacebookF } from "react-icons/fa";
-import qr from "../../assets/mautamu-telegram-qr.jpeg";
 
+import qr from "../assets/mautamu-telegram-qr.jpeg"
 export default function Footer() {
   return (
     <footer className="bg-base-200 text-base-content py-10 px-6 md:px-16">

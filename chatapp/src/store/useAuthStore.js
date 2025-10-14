@@ -76,7 +76,7 @@ export const useAuthStore = create(
     // ✅ Register SW and prompt/subscribe on login
     await get().initPushNotifications();
 
-    return normalizedUser; // 🔹 ADD THIS: Return user for component to use
+    return normalizedUser; 
   } catch (err) {
     set({ loading: false });
     showToast(err.response?.data?.msg || "Login failed!", true);
