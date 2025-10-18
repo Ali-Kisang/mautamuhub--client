@@ -61,10 +61,10 @@ export default function CreateAccount() {
         </button>
         <p className="text-sm text-gray-500 mt-6 text-center">
           Need help? Contact our{" "}
-          <a href="/support" className="text-pink-600 hover:underline">
-            Support Team
-          </a>{" "}
-          anytime.
+         <a 
+            href="mailto:support@mautamuhub.com"
+            className="text-pink-600 hover:underline"
+          >support team</a>.
         </p>
       </div>
     </div>
