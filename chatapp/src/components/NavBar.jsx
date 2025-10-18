@@ -6,7 +6,7 @@ import { Menu, X, MessageCircle, Search } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { DotSpinner } from "@uiball/loaders";
 import api from "../utils/axiosInstance"; // ✅ Added for fetch
-import mautamuLogo from "../assets/mautamuLogo.png";
+
 import Loader from "../pages/Loader";
 
 export default function NavBar() {
@@ -218,7 +218,7 @@ export default function NavBar() {
             <div className="flex items-center gap-4">
               <Link to="/">
                 <img
-                  src={mautamuLogo}
+                  src="/MautamuLogo.png"
                   alt="Mautamuhub Logo"
                   className="h-20 sm:h-40 md:h-48 lg:h-64 w-auto object-contain"
                 />
