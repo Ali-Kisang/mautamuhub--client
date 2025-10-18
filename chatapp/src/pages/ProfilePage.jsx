@@ -21,6 +21,7 @@ export default function ProfilePage() {
   const [isPaying, setIsPaying] = useState(false);
   const [balance, setBalance] = useState(0);
   const [prorateAmount, setProrateAmount] = useState(0);
+  const [newType, setNewType] = useState(""); // ✅ NEW: Track newType for prorate
   const intervalRef = useRef(null);
 
   const cld = new Cloudinary({
@@ -63,13 +64,14 @@ export default function ProfilePage() {
     }
   }, [user?._id]);
 
-  // ✅ NEW: Handle prorate link from email (query params)
+  // ✅ UPDATED: Handle prorate link from email (query params)
   useEffect(() => {
     const userId = searchParams.get('userId');
     const amount = searchParams.get('amount');
-    const newType = searchParams.get('newType');
-    if (userId && amount && newType && userId === user?._id) {
+    const newTypeParam = searchParams.get('newType');
+    if (userId && amount && newTypeParam && userId === user?._id) {
       setProrateAmount(parseInt(amount));
+      setNewType(newTypeParam); // ✅ Set newType
       handleProratePayment(); // Auto-initiate prorate if on this page
     }
   }, [searchParams, user?._id]);
@@ -135,19 +137,22 @@ export default function ProfilePage() {
     }
   }, [profile, isExpired, isPaying, fetchProfile]);
 
-  // ✅ UPDATED: handlePayNow for extension/renewal (send duration for backend proration)
+  // ✅ UPDATED: handlePayNow for extension/renewal (send duration for backend proration, + phone & profileData)
   const handlePayNow = async () => {
-    if (isPaying || !user?._id) return;
+    if (isPaying || !user?._id || !profile) return;
 
     setIsPaying(true);
     setError(null);
 
     try {
       const duration = profile?.accountType?.duration || 30; // Default 30 days for extension
+      const amount = getAmountForType(profile?.accountType?.type, duration); // Full amount for renewal
       await api.post("/users/payments/initiate", { 
         accountType: profile?.accountType?.type,
         duration,
-        amount: getAmountForType(profile?.accountType?.type, duration) // Send amount for full extension
+        amount,
+        phone: profile.personal?.phone, // ✅ Add phone for STK push
+        profileData: profile // ✅ Queue existing profile for update on success
       });
       intervalRef.current = setInterval(async () => {
         await fetchProfile();
@@ -167,16 +172,15 @@ export default function ProfilePage() {
     }
   };
 
-  // ✅ NEW: Handle prorate payment from email link
   const handleProratePayment = async () => {
-    if (isPaying || prorateAmount === 0) return;
+    if (isPaying || prorateAmount === 0 || !newType) return;
 
     setIsPaying(true);
     setError(null);
 
     try {
-      // Call prorate endpoint
-      const res = await api.get(`/payments/prorate-upgrade?userId=${user._id}&amount=${prorateAmount}&newType=VIP`); // Default newType
+      // Call prorate endpoint with dynamic newType
+      const res = await api.get(`/payments/prorate-upgrade?userId=${user._id}&amount=${prorateAmount}&newType=${newType}`);
       if (res.data.requiresPayment) {
         intervalRef.current = setInterval(async () => {
           await fetchProfile();
@@ -196,7 +200,7 @@ export default function ProfilePage() {
     }
   };
 
-  // ✅ NEW: Get amount for extension (match tier pricing)
+  // ✅ UPDATED: Get amount for extension (match tier pricing)
   const getAmountForType = (type, duration = 30) => {
     const rates = {
       Regular: { 3: 1, 7: 650, 15: 1250, 30: 1800 },
@@ -206,6 +210,21 @@ export default function ProfilePage() {
     };
     return rates[type]?.[duration] || 1800;
   };
+
+  // ✅ NEW: Render delisted overlay for expired sections
+  const DelistedOverlay = ({ children }) => (
+    <div className="relative">
+      {children}
+      {isExpired && (
+        <div className="absolute inset-0 bg-gray-50/50 rounded-xl flex items-center justify-center pointer-events-none z-10">
+          <p className="text-gray-500 text-sm flex items-center gap-1">
+            <AlertTriangle size={14} className="text-gray-400" />
+            Profile delisted – Reactivate to view publicly
+          </p>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <ProfileLayout>
@@ -261,58 +280,59 @@ export default function ProfilePage() {
         </>
       )}
 
-      {/* 🔹 If profile exists but expired, show expiry banner */}
-      {profile && isExpired && (
-        <div className="max-w-5xl mx-auto mt-4 p-4 bg-red-50 border border-red-200 rounded-xl text-center">
-          <p className="text-red-800 flex items-center justify-center gap-2 mb-2">
-            <AlertTriangle className="w-5 h-5" aria-hidden="true" />
-            Your {accountType} {isTrial ? 'trial' : 'subscription'} has expired. Pay now to extend {profile?.accountType?.duration || 30} days! (Balance: Ksh {balance})
-          </p>
-          <button
-            onClick={handlePayNow} 
-            disabled={isPaying}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg shadow hover:bg-red-600 disabled:bg-red-300 transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-            aria-label="Extend subscription"
-          >
-            {isPaying ? (
-              <l-dot-stream size="20" speed="1.5" color="white"></l-dot-stream>
-            ) : (
-              <DollarSign size={18} />
-            )}
-            {isPaying ? "Processing Extension..." : "Extend Now"}
-          </button>
-        </div>
-      )}
-
-      {/* 🔹 If profile active but expiring soon (trials only), show warning banner */}
-      {profile && !isExpired && isExpiringSoon && (
-        <div className="max-w-5xl mx-auto mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
-          <p className="text-yellow-800 flex items-center justify-center gap-2">
-            <Clock className="w-5 h-5" aria-hidden="true" />
-            Your trial ends in {daysLeft} day{daysLeft !== 1 ? 's' : ''} (Balance: Ksh {balance}). Extend or upgrade to keep your {accountType} features!
-          </p>
-          <div className="flex flex-col sm:flex-row gap-2 mt-2 justify-center">
-            <button
-              onClick={handlePayNow} // Extension
-              className="px-3 py-1 text-sm bg-yellow-500 text-white rounded-md hover:bg-yellow-600"
-            >
-              Extend Trial
-            </button>
-            <Link
-              to="/upgrade-account"
-              className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-yellow-600 text-white rounded-md hover:bg-yellow-700"
-              aria-label="Upgrade before expiry"
-            >
-              <ArrowUpRight size={14} />
-              Upgrade Now
-            </Link>
-          </div>
-        </div>
-      )}
-
-      {/* 🔹 If profile exists and active, show profile data */}
-      {profile && !isExpired && (
+      {/* 🔹 If profile exists (active or expired), show full page with conditional banners */}
+      {profile && (
         <>
+          {/* Conditional Expiry Banner (shows for active: false) */}
+          {isExpired && (
+            <div className="max-w-5xl mx-auto mt-4 p-4 bg-red-50 border border-red-200 rounded-xl text-center">
+              <p className="text-red-800 flex items-center justify-center gap-2 mb-2">
+                <AlertTriangle className="w-5 h-5" aria-hidden="true" />
+                Your {accountType} {isTrial ? 'trial' : 'subscription'} has expired. Pay now to reactivate and extend {profile?.accountType?.duration || 30} days! (Balance: Ksh {balance})
+              </p>
+              <button
+                onClick={handlePayNow} 
+                disabled={isPaying}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg shadow hover:bg-red-600 disabled:bg-red-300 transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
+                aria-label="Reactivate subscription"
+              >
+                {isPaying ? (
+                  <l-dot-stream size="20" speed="1.5" color="white"></l-dot-stream>
+                ) : (
+                  <DollarSign size={18} />
+                )}
+                {isPaying ? "Processing Reactivation..." : "Reactivate Now"}
+              </button>
+            </div>
+          )}
+
+          {/* Conditional Expiring Soon Banner (for active trials only) */}
+          {!isExpired && isExpiringSoon && (
+            <div className="max-w-5xl mx-auto mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+              <p className="text-yellow-800 flex items-center justify-center gap-2">
+                <Clock className="w-5 h-5" aria-hidden="true" />
+                Your trial ends in {daysLeft} day{daysLeft !== 1 ? 's' : ''} (Balance: Ksh {balance}). Extend or upgrade to keep your {accountType} features!
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2 mt-2 justify-center">
+                <button
+                  onClick={handlePayNow} // Extension
+                  className="px-3 py-1 text-sm bg-yellow-500 text-white rounded-md hover:bg-yellow-600"
+                >
+                  Extend Trial
+                </button>
+                <Link
+                  to="/upgrade-account"
+                  className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-yellow-600 text-white rounded-md hover:bg-yellow-700"
+                  aria-label="Upgrade before expiry"
+                >
+                  <ArrowUpRight size={14} />
+                  Upgrade Now
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* Full Profile Content (always render if profile exists) */}
           {/* Banner */}
           <div className="bg-gradient-to-r from-pink-200 to-pink-500 h-48 relative">
             <div className="absolute -bottom-20 left-1/2 transform -translate-x-1/2 flex flex-col items-center">
@@ -337,6 +357,13 @@ export default function ProfilePage() {
                     No Photo
                   </div>
                 )}
+                {/* ✅ NEW: Delisted badge on banner if expired */}
+                {isExpired && (
+                  <div className="absolute top-3 right-3 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1">
+                    <AlertTriangle size={10} />
+                    Delisted
+                  </div>
+                )}
               </div>
               <h1 className="mt-6 text-2xl md:text-3xl font-bold text-gray-800 text-center">
                 {profile.personal?.username}
@@ -353,157 +380,176 @@ export default function ProfilePage() {
 
           {/* Profile content */}
           <div className="max-w-5xl mx-auto mt-28 space-y-6 p-4">
-            {/* Edit CTA */}
+            {/* Edit CTA – disable if expired */}
             <div className="text-right">
               <Link
                 to="/edit-profile"
-                className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-pink-100 text-pink-700 rounded-md hover:bg-pink-200 transition-colors focus:outline-none focus:ring-2 focus:ring-pink-300"
+                className={`inline-flex items-center gap-1 px-3 py-1 text-sm rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-pink-300 ${
+                  isExpired 
+                    ? 'bg-gray-100 text-gray-500 cursor-not-allowed' 
+                    : 'bg-pink-100 text-pink-700 hover:bg-pink-200'
+                }`}
                 aria-label="Edit your profile"
+                onClick={(e) => isExpired && e.preventDefault()}  // Prevent if expired
               >
                 <Edit2 size={14} />
-                Edit Profile
+                {isExpired ? 'Reactivate to Edit' : 'Edit Profile'}
               </Link>
             </div>
 
             {/* Account Type Badge */}
-            <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
-              <h2 className="text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
-                <Crown className="text-pink-500" size={25} aria-hidden="true" /> Account Type
-              </h2>
-              <div className="flex items-center justify-center gap-4">
-                <span className={`px-4 py-2 rounded-full border font-semibold flex items-center gap-2 ${getAccountBadgeClass(accountType)}`}>
-                  {isVerified && <MdVerified className="w-4 h-4 text-pink-500" />}
-                  {getBadgeText()}
-                </span>
+            <DelistedOverlay>
+              <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+                <h2 className="text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
+                  <Crown className="text-pink-500" size={25} aria-hidden="true" /> Account Type
+                </h2>
+                <div className="flex items-center justify-center gap-4">
+                  <span className={`px-4 py-2 rounded-full border font-semibold flex items-center gap-2 ${getAccountBadgeClass(accountType)}`}>
+                    {isVerified && <MdVerified className="w-4 h-4 text-pink-500" />}
+                    {getBadgeText()}
+                  </span>
+                </div>
+                {!isVerified && !isTrial && (
+                  <div className="mt-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg">
+                    <p className="text-yellow-800 flex items-center gap-2">
+                      <AlertTriangle className="w-5 h-5" aria-hidden="true" />
+                      You're not verified. Upgrade to VVIP or Spa for better visibility and priority features!
+                    </p>
+                    <Link
+                      to="/upgrade-account"
+                      className="inline-flex items-center gap-1 mt-2 px-3 py-1 text-sm bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-300"
+                      aria-label="Upgrade your account"
+                    >
+                      <ArrowUpRight size={14} />
+                      Upgrade Now
+                    </Link>
+                  </div>
+                )}
+                {isTrial && (
+                  <div className="mt-4 p-4 bg-pink-50 border-l-4 border-pink-400 rounded-r-lg">
+                    <p className="text-pink-800 flex items-center gap-2">
+                      <Clock className="w-5 h-5" aria-hidden="true" />
+                      Enjoying your free trial? Upgrade anytime to continue without interruptions.
+                    </p>
+                    <Link
+                      to="/upgrade-account"
+                      className="inline-flex items-center gap-1 mt-2 px-3 py-1 text-sm bg-pink-500 text-white rounded-md hover:bg-pink-600 transition-colors focus:outline-none focus:ring-2 focus:ring-pink-300"
+                      aria-label="Upgrade from trial"
+                    >
+                      <ArrowUpRight size={14} />
+                      Upgrade to Full
+                    </Link>
+                  </div>
+                )}
               </div>
-              {!isVerified && !isTrial && (
-                <div className="mt-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg">
-                  <p className="text-yellow-800 flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5" aria-hidden="true" />
-                    You're not verified. Upgrade to VVIP or Spa for better visibility and priority features!
-                  </p>
-                  <Link
-                    to="/upgrade-account"
-                    className="inline-flex items-center gap-1 mt-2 px-3 py-1 text-sm bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-300"
-                    aria-label="Upgrade your account"
-                  >
-                    <ArrowUpRight size={14} />
-                    Upgrade Now
-                  </Link>
-                </div>
-              )}
-              {isTrial && (
-                <div className="mt-4 p-4 bg-pink-50 border-l-4 border-pink-400 rounded-r-lg">
-                  <p className="text-pink-800 flex items-center gap-2">
-                    <Clock className="w-5 h-5" aria-hidden="true" />
-                    Enjoying your free trial? Upgrade anytime to continue without interruptions.
-                  </p>
-                  <Link
-                    to="/upgrade-account"
-                    className="inline-flex items-center gap-1 mt-2 px-3 py-1 text-sm bg-pink-500 text-white rounded-md hover:bg-pink-600 transition-colors focus:outline-none focus:ring-2 focus:ring-pink-300"
-                    aria-label="Upgrade from trial"
-                  >
-                    <ArrowUpRight size={14} />
-                    Upgrade to Full
-                  </Link>
-                </div>
-              )}
-            </div>
+            </DelistedOverlay>
 
             {/* Personal Info */}
-            <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
-              <h2 className="text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
-                <User className="text-pink-500" size={25} aria-hidden="true" /> Personal Info
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-700">
-                <p>
-                  <span className="font-medium flex items-center gap-1">
-                    <Phone size={16} aria-hidden="true" /> Phone:
-                  </span>{" "}
-                  {profile.personal?.phone}
-                </p>
-                <p>
-                  <span className="font-medium">Ethnicity:</span>{" "}
-                  {profile.personal?.ethnicity}
-                </p>
-                <p>
-                  <span className="font-medium">Orientation:</span>{" "}
-                  {profile.personal?.orientation}
-                </p>
+            <DelistedOverlay>
+              <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+                <h2 className="text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
+                  <User className="text-pink-500" size={25} aria-hidden="true" /> Personal Info
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-700">
+                  <p>
+                    <span className="font-medium flex items-center gap-1">
+                      <Phone size={16} aria-hidden="true" /> Phone:
+                    </span>{" "}
+                    {profile.personal?.phone}
+                  </p>
+                  <p>
+                    <span className="font-medium">Ethnicity:</span>{" "}
+                    {profile.personal?.ethnicity}
+                  </p>
+                  <p>
+                    <span className="font-medium">Orientation:</span>{" "}
+                    {profile.personal?.orientation}
+                  </p>
+                </div>
               </div>
-            </div>
+            </DelistedOverlay>
 
             {/* Rates */}
-            <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
-              <h2 className="text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
-                <DollarSign className="text-pink-500" size={25} aria-hidden="true" /> Rates
-              </h2>
-              <div className="flex flex-wrap gap-3">
-                <span className="bg-pink-100 text-pink-500 px-4 py-2 rounded-lg font-medium">
-                  Incall: Ksh {profile.additional?.incallRate}
-                </span>
-                <span className="bg-pink-100 text-pink-500 px-4 py-2 rounded-lg font-medium">
-                  Outcall: Ksh {profile.additional?.outcallRate}
-                </span>
+            <DelistedOverlay>
+              <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+                <h2 className="text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
+                  <DollarSign className="text-pink-500" size={25} aria-hidden="true" /> Rates
+                </h2>
+                <div className="flex flex-wrap gap-3">
+                  <span className="bg-pink-100 text-pink-500 px-4 py-2 rounded-lg font-medium">
+                    Incall: Ksh {profile.additional?.incallRate}
+                  </span>
+                  <span className="bg-pink-100 text-pink-500 px-4 py-2 rounded-lg font-medium">
+                    Outcall: Ksh {profile.additional?.outcallRate}
+                  </span>
+                </div>
               </div>
-            </div>
+            </DelistedOverlay>
 
             {/* Services */}
             {profile.services?.selected?.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
-                <h2 className="text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
-                  <Heart size={25} className="text-pink-500" aria-hidden="true" /> Services
-                </h2>
-                <div className="flex flex-wrap gap-2">
-                  {profile.services.selected.map((service, i) => (
-                    <span
-                      key={i}
-                      className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm hover:bg-gray-200 transition-colors"
-                    >
-                      {service}
-                    </span>
-                  ))}
+              <DelistedOverlay>
+                <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+                  <h2 className="text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
+                    <Heart size={25} className="text-pink-500" aria-hidden="true" /> Services
+                  </h2>
+                  <div className="flex flex-wrap gap-2">
+                    {profile.services.selected.map((service, i) => (
+                      <span
+                        key={i}
+                        className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm hover:bg-gray-200 transition-colors"
+                      >
+                        {service}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              </DelistedOverlay>
             )}
 
             {/* About Me */}
-            <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
-              <h2 className="text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
-                <User size={25} className="text-pink-500" aria-hidden="true" /> About Me
-              </h2>
-              <p className="text-gray-700 leading-relaxed">
-                {profile.additional?.description || "No description available."}
-              </p>
-            </div>
+            <DelistedOverlay>
+              <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+                <h2 className="text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
+                  <User size={25} className="text-pink-500" aria-hidden="true" /> About Me
+                </h2>
+                <p className="text-gray-700 leading-relaxed">
+                  {profile.additional?.description || "No description available."}
+                </p>
+              </div>
+            </DelistedOverlay>
 
             {/* Photos */}
             {profile.photos && profile.photos.length > 0 ? (
-              <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
-                <h2 className="text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
-                  <Camera size={25} className="text-pink-500" aria-hidden="true" /> Photos
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {profile.photos.map((publicId, i) => (
-                    <div
-                      key={i}
-                      className="relative overflow-hidden rounded-lg shadow aspect-square bg-gray-100"
-                    >
-                      <AdvancedImage
-                        cldImg={cld
-                          .image(publicId)
-                          .resize(auto().gravity(autoGravity()))}
-                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
-                        alt={`${profile.personal?.username}'s photo ${i + 1}`}
-                      />
-                    </div>
-                  ))}
+              <DelistedOverlay>
+                <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+                  <h2 className="text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
+                    <Camera size={25} className="text-pink-500" aria-hidden="true" /> Photos
+                  </h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    {profile.photos.map((publicId, i) => (
+                      <div
+                        key={i}
+                        className="relative overflow-hidden rounded-lg shadow aspect-square bg-gray-100"
+                      >
+                        <AdvancedImage
+                          cldImg={cld
+                            .image(publicId)
+                            .resize(auto().gravity(autoGravity()))}
+                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                          alt={`${profile.personal?.username}'s photo ${i + 1}`}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              </DelistedOverlay>
             ) : (
-              <div className="bg-white rounded-xl shadow-sm p-6 text-center text-gray-500">
-                No photos uploaded yet.
-              </div>
+              <DelistedOverlay>
+                <div className="bg-white rounded-xl shadow-sm p-6 text-center text-gray-500">
+                  No photos uploaded yet.
+                </div>
+              </DelistedOverlay>
             )}
           </div>
         </>

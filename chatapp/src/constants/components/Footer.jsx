@@ -1,4 +1,4 @@
-import { FaXTwitter } from "react-icons/fa6";
+import { FaXTwitter, FaTiktok } from "react-icons/fa6";
 import { FaTelegram, FaFacebookF } from "react-icons/fa";
 import qr from "../../assets/mautamu-telegram-qr.jpeg";
 
@@ -49,6 +49,13 @@ export default function Footer() {
               className="p-2 rounded-full bg-white shadow hover:bg-pink-100 transition"
             >
               <FaFacebookF className="text-[#1877f2]" />
+            </a>
+            <a
+              href="https://www.tiktok.com/@mautamuhub.com"
+              aria-label="TikTok"
+              className="p-2 rounded-full bg-white shadow hover:bg-pink-100 transition"
+            >
+              <FaTiktok className="text-black" />
             </a>
           </div>
 

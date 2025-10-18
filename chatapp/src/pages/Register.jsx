@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import axios from "axios";
 import { showToast } from "../toast/showToast";
 import { TailSpin } from "react-loader-spinner";
 import { EyeIcon, EyeOffIcon } from "@heroicons/react/outline"; // install: npm i @heroicons/react
+import api from "../utils/axiosInstance";
 
 export default function Register() {
   const [form, setForm] = useState({ username: "", email: "", password: "" });
@@ -38,7 +38,7 @@ export default function Register() {
       fd.append("password", form.password);
       if (avatar) fd.append("avatar", avatar);
 
-      await axios.post("http://localhost:5000/api/auth/register", fd, {
+      await api.post("/auth/register", fd, {
         headers: { "Content-Type": "multipart/form-data" }
       });
 
