@@ -6,11 +6,12 @@ import { StepPersonalInfo, validatePersonalInfo } from "./steps/StepPersonalInfo
 import StepPhotos, { validatePhotos } from "./steps/StepPhotos";
 import { StepReview } from "./steps/StepReview";
 import { useOnboardingStore } from "../../store/useOnboardingStore";
-import axios from "axios";
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { showToast } from "../utils/showToast";
 import Footer from "../../pages/Footer";
+import api from "../../utils/axiosInstance";
 
 export default function OnBoarding() {
   const [validationErrors, setValidationErrors] = useState({});
@@ -81,7 +82,7 @@ export default function OnBoarding() {
 
     try {
       console.log('🔍 Polling for checkoutRequestID:', checkoutRequestId);
-      const res = await axios.get("http://localhost:5000/api/users/payments/my-transactions", {
+      const res = await api.get("/users/payments/my-transactions", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -202,7 +203,7 @@ export default function OnBoarding() {
       }
 
       // Send request (multipart for files)
-      const res = await axios.put("http://localhost:5000/api/users/profile", fd, {
+      const res = await api.put("/users/profile", fd, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",

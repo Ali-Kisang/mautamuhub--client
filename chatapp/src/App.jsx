@@ -71,6 +71,7 @@ import { useEffect } from "react";
 import Loader from "./pages/Loader";
 import EditProfile from "./pages/EditProfile";
 import UpgradeAccount from "./components/onboading/steps/UpgradeAccount";
+import ResetPassword from "./pages/ResetPassword";
 
  function PrivateRoute({ children }) {
   const { user } = useAuthStore();
@@ -110,6 +111,7 @@ export default function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
         <Route path="/edit-profile" element={<EditProfile />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route
   path="/profile"
   element={

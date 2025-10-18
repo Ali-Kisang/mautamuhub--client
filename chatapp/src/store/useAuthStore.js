@@ -58,31 +58,97 @@ export const useAuthStore = create(
         }
       },
 
-     login: async ({ email, password }) => {
+      login: async ({ email, password }) => {
+        try {
+          set({ loading: true });
+          const { data } = await api.post("/auth/login", { email, password });
+
+          const normalizedUser = {
+            ...data.user,
+            username: data.user?.username?.trim() || "User",
+          };
+
+          set({ user: normalizedUser, token: data.token, loading: false });
+          localStorage.setItem("user", JSON.stringify(normalizedUser));
+          localStorage.setItem("token", data.token);
+          showToast(`Welcome back ${normalizedUser.username} 👋`, false);
+
+          // ✅ Register SW and prompt/subscribe on login
+          await get().initPushNotifications();
+
+          return normalizedUser; 
+        } catch (err) {
+          set({ loading: false });
+          showToast(err.response?.data?.msg || "Login failed!", true);
+          throw err;
+        }
+      },
+
+     
+      forgotPassword: async ({ email }) => {
   try {
-    set({ loading: true });
-    const { data } = await api.post("/auth/login", { email, password });
-
-    const normalizedUser = {
-      ...data.user,
-      username: data.user?.username?.trim() || "User",
-    };
-
-    set({ user: normalizedUser, token: data.token, loading: false });
-    localStorage.setItem("user", JSON.stringify(normalizedUser));
-    localStorage.setItem("token", data.token);
-    showToast(`Welcome back ${normalizedUser.username} 👋`, false);
-
-    // ✅ Register SW and prompt/subscribe on login
-    await get().initPushNotifications();
-
-    return normalizedUser; 
+    await api.post("/users/forgot-password", { email });
+    showToast("Password reset email sent! Check your inbox.", false);
   } catch (err) {
-    set({ loading: false });
-    showToast(err.response?.data?.msg || "Login failed!", true);
-    throw err;
+   
+    
+    const status = err.response?.status;
+    const backendMessage = err.response?.data?.message || 'Failed to send reset email. Please try again.';
+    
+    if (status === 200) {
+      
+      showToast("If the email exists, a reset link has been sent.", false);
+    } else if (status === 404) {
+      
+      showToast(backendMessage, true); 
+    } else {
+     
+      showToast(backendMessage, true);
+    }
+    
+    throw err; 
   }
 },
+
+      // ✅ New: Reset Password (public endpoint, validates token server-side)
+      resetPassword: async ({ token, newPassword }) => {
+        try {
+          if (newPassword.length < 6) {
+            showToast("Password must be at least 6 characters.", true);
+          }
+          await api.post("/users/reset-password", { token, newPassword });
+          showToast("Password reset successful! You can now log in.", false);
+        } catch (err) {
+          showToast(err.response?.data?.message || "Failed to reset password. The link may be invalid or expired.", true);
+          throw err;
+        }
+      },
+
+      register: async ({ username, email, password }) => {
+        try {
+          set({ loading: true });
+          const { data } = await api.post("/auth/register", { username, email, password });
+
+          const normalizedUser = {
+            ...data.user,
+            username: data.user?.username?.trim() || "User",
+          };
+
+          set({ user: normalizedUser, token: data.token, loading: false });
+          localStorage.setItem("user", JSON.stringify(normalizedUser));
+          localStorage.setItem("token", data.token);
+          showToast(`Welcome ${normalizedUser.username}! Account created 👋`, false);
+
+          // ✅ Register SW and prompt/subscribe on register
+          await get().initPushNotifications();
+
+          return normalizedUser;
+        } catch (err) {
+          set({ loading: false });
+          showToast(err.response?.data?.msg || "Registration failed!", true);
+          throw err;
+        }
+      },
 
       logout: () => {
         set({ user: null, token: null, loading: false, onlineUsers: [] });
@@ -90,7 +156,7 @@ export const useAuthStore = create(
         localStorage.removeItem("token");
         showToast("Logged out successfully", false, { icon: "👋" });
       },
-
+      
       setOnlineUsers: (users) => {
         set({ onlineUsers: users });
         console.log("Store updated onlineUsers:", users.length); 
