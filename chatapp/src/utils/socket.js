@@ -1,2 +1,11 @@
 import { io } from "socket.io-client";
-export const socket = io("http://localhost:5000");
+
+const SOCKET_URL =
+  import.meta.env.MODE === "development"
+    ? "http://localhost:5000"
+    : "https://mautamuhub.com";
+
+export const socket = io(SOCKET_URL, {
+  withCredentials: true,
+  transports: ["websocket", "polling"],
+});
