@@ -27,7 +27,7 @@ export default function UpgradeAccount() {
   const accountTiers = [
     {
       type: "Regular",
-      pricing: { 3: 1, 7: 650, 15: 1250, 30: 1800 },
+      pricing: { 3: 350, 7: 650, 15: 1250, 30: 1800 },
       durationOptions: [3, 7, 15, 30],
       benefits: ["Basic visibility", "Post up to 4 photos", "Standard matching", "Basic customer support"],
       verified: false,

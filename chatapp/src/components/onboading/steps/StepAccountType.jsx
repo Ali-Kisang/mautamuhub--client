@@ -48,7 +48,7 @@ const StepAccountType = ({ selected, setSelected }) => {
     },
     {
       type: "VIP",
-      pricing: { 3: 1, 7: 850, 15: 1650, 30: 2800 },
+      pricing: { 3: 450, 7: 850, 15: 1650, 30: 2800 },
       details: [
         "Appear at the top of each County",
         "Post up to 6 photos",

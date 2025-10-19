@@ -161,9 +161,9 @@ export default function Header() {
 
       {/* CTA Buttons */}
       <div className="flex flex-col sm:flex-row justify-center gap-4 mt-10 text-center">
-        <a href="/chat-escort" className="btn btn-primary animate-pulse text-lg px-8 py-3 bg-pink-600 hover:bg-pink-700 text-white rounded-lg font-semibold">
+        <button  className="btn btn-primary animate-pulse text-lg px-8 py-3 bg-pink-600 hover:bg-pink-700 text-white rounded-lg font-semibold">
           💌 Chat with Me Now
-        </a>
+        </button>
         <button className="btn btn-secondary animate-pulse text-lg px-8 py-3 bg-pink-500 hover:bg-pink-600 text-white rounded-lg font-semibold">
           📸 View My Gallery
         </button>
