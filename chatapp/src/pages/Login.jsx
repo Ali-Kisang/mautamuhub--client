@@ -1,18 +1,15 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { TailSpin } from "react-loader-spinner";
 import { EyeIcon, EyeOffIcon } from "@heroicons/react/outline";
 import { useAuthStore } from "../store/useAuthStore";
-import { showToast } from "../components/utils/showToast";
-
 
 export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [resetEmail, setResetEmail] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showResetForm, setShowResetForm] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // Note: Could remove if using store's loading
   const [resetLoading, setResetLoading] = useState(false);
 
   const nav = useNavigate();
@@ -33,10 +30,10 @@ export default function Login() {
     setLoading(true);
     try {
       await login(form);
-      showToast("Login successful!", false);
+      // Toast handled in store; remove duplicate here
     } catch (err) {
       console.error(err);
-      showToast("Login failed. Check credentials.", true);
+      // Toast handled in store; remove duplicate here
     } finally {
       setLoading(false);
     }
@@ -48,12 +45,12 @@ export default function Login() {
     setResetLoading(true);
     try {
       await forgotPassword({ email: resetEmail });
-      showToast("Password reset email sent! Check your inbox.", false);
       setShowResetForm(false);
       setResetEmail("");
+      // Toast handled in store
     } catch (err) {
       console.error(err);
-      showToast("Failed to send reset email. Please try again.", true);
+      // Toast handled in store
     } finally {
       setResetLoading(false);
     }
@@ -77,7 +74,7 @@ export default function Login() {
         </h2>
 
         {!showResetForm ? (
-          <>
+          <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email */}
             <input
               type="email"
@@ -85,6 +82,7 @@ export default function Login() {
               value={form.email}
               onChange={handleChange}
               placeholder="Email"
+              autoComplete="email"
               className="w-full p-3 border border-pink-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400"
               required
             />
@@ -97,6 +95,7 @@ export default function Login() {
                 value={form.password}
                 onChange={handleChange}
                 placeholder="Password"
+                autoComplete="current-password"
                 className="w-full p-3 border border-pink-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400 pr-12"
                 required
               />
@@ -129,8 +128,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              onClick={handleSubmit} // Since form onSubmit is not directly on button, use onClick
-              className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-lg font-semibold transition duration-200 flex items-center justify-center"
+              className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-lg font-semibold transition duration-200 flex items-center justify-center disabled:opacity-50"
             >
               {loading ? (
                 <TailSpin height={24} width={24} color="#fff" />
@@ -138,15 +136,16 @@ export default function Login() {
                 "Login"
               )}
             </button>
-          </>
+          </form>
         ) : (
-          <>
+          <form onSubmit={handleResetSubmit} className="space-y-3">
             {/* Reset Email Input */}
             <input
               type="email"
               value={resetEmail}
               onChange={handleResetEmailChange}
               placeholder="Enter your email to reset password"
+              autoComplete="email"
               className="w-full p-3 border border-pink-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400"
               required
             />
@@ -154,8 +153,7 @@ export default function Login() {
             {/* Reset Buttons */}
             <div className="flex space-x-2">
               <button
-                type="button"
-                onClick={handleResetSubmit}
+                type="submit"
                 disabled={resetLoading || !resetEmail}
                 className="flex-1 bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-lg font-semibold transition duration-200 flex items-center justify-center disabled:opacity-50"
               >
@@ -176,7 +174,7 @@ export default function Login() {
                 Cancel
               </button>
             </div>
-          </>
+          </form>
         )}
 
         <p className="text-center text-sm">
