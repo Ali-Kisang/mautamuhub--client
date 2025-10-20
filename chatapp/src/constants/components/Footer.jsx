@@ -30,7 +30,7 @@ export default function Footer() {
         <div className="flex flex-col items-center gap-4">
           <div className="flex gap-4 text-xl">
             <a
-              href="https://x.com/mautamuhub"
+              href="https://x.com/Mautamuhubkenya?t=GYcw32nI6FvxdKdLzVSNxg&s=08"
               aria-label="X (Twitter)"
               className="p-2 rounded-full bg-white shadow hover:bg-pink-100 transition"
             >
@@ -44,14 +44,14 @@ export default function Footer() {
               <FaTelegram className="text-[#0088cc]" />
             </a>
             <a
-              href="https://www.facebook.com/groups/1236627844509614"
+              href="https://www.facebook.com/share/1BU5bU4zfh/"
               aria-label="Facebook"
               className="p-2 rounded-full bg-white shadow hover:bg-pink-100 transition"
             >
               <FaFacebookF className="text-[#1877f2]" />
             </a>
             <a
-              href="https://www.tiktok.com/@mautamuhub.com"
+              href="https://www.tiktok.com/@mautamuhub.com?_t=ZM-90hxrBfpz35&_r=1"
               aria-label="TikTok"
               className="p-2 rounded-full bg-white shadow hover:bg-pink-100 transition"
             >
