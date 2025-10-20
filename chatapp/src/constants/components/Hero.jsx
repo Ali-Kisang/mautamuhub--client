@@ -9,7 +9,7 @@ import HomeLayout from "./HomeLayout";
 import Header from "./Header";
 
 const Hero = () => {
-  const server = "http://localhost:5000/api";
+  const server = "https://mautamuhub.com/api";
   const [users, setUsers] = useState({
     spas: [],
     vvipAccounts: [],
