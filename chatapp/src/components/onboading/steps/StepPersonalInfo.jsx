@@ -148,18 +148,18 @@ export function StepPersonalInfo({ data, update, errors = {} }) {
 
       {/* Complexion */}
       <FormInput
-        label="Complexion"
+        label="Complexion(Rangi ya ngozi yako)"
         value={data.complexity}
         onChange={(e) => update({ complexity: e.target.value })}
-        placeholder="Complexion"
+        placeholder="Complexion (e.g., Fair, Wheatish, Dark) "
       />
 
       {/* Ethnicity */}
       <FormInput
-        label="Ethnicity"
+        label="Ethnicity(Kabila yako)"
         value={data.ethnicity}
         onChange={(e) => update({ ethnicity: e.target.value })}
-        placeholder="Ethnicity"
+        placeholder="Ethnicity (e.g., Swahili, Kamba, Kikuyu...) "
       />
     </div>
   );

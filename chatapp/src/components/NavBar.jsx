@@ -273,17 +273,17 @@ export default function NavBar() {
                 <Search size={26} strokeWidth={2.5} />
               </button>
 
-              {/* Login / Logout / Loader */}
+              {/*Register / Logout / Loader */}
               {authLoading ? (
                 <div className="px-4 py-2">
                   <Loader text="" size={20} color="text-pink-600" />
                 </div>
               ) : !user ? (
                 <Link
-                  to="/login"
+                  to="/register"
                   className="px-4 py-2 bg-pink-600 text-white rounded-xl hover:bg-pink-700 transition-colors duration-200 hover:cursor-pointer"
                 >
-                  Login
+                 Register
                 </Link>
               ) : (
                 <button
@@ -357,18 +357,18 @@ export default function NavBar() {
     </>
   )}
 
-  {/* Login / Logout / Loader */}
+  {/*Register / Logout / Loader */}
   {authLoading ? (
     <div className="flex justify-center py-2">
       <Loader text="" size={20} color="text-pink-600" />
     </div>
   ) : !user ? (
     <Link
-      to="/login"
+      to="/register"
       onClick={() => setOpen(false)}
       className="px-4 py-2 bg-pink-600 text-white rounded-xl text-center hover:bg-pink-700"
     >
-      Login
+     Register
     </Link>
   ) : (
     <button

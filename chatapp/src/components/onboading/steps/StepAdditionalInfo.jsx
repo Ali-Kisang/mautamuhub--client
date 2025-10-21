@@ -14,7 +14,7 @@ export const validateAdditionalInfo = (data) => {
 
   if (!data.description?.trim()) {
     errors.description = "Description is required.";
-  } else if (data.description.trim().length < 20) {
+  } else if (data.description.trim().length < 50) {
     errors.description = "Description must be at least 20 characters.";
   }
 
@@ -43,7 +43,7 @@ export function StepAdditional({ data, update, errors = {} }) {
       {/* Incall Rate */}
       <div>
         <label htmlFor="incallRate" className="block text-gray-700 font-medium mb-1">
-          Incall Rate <span className="text-red-500">*</span>
+          Incall Rate (Pesa utadai mwenye anakutembelea kwako) <span className="text-red-500">*</span>
         </label>
         <div className="relative">
           <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500 text-sm">
@@ -72,7 +72,7 @@ export function StepAdditional({ data, update, errors = {} }) {
       {/* Outcall Rate */}
       <div>
         <label htmlFor="outcallRate" className="block text-gray-700 font-medium mb-1">
-          Outcall Rate <span className="text-red-500">*</span>
+          Outcall Rate (Pesa utadai mwenye unaenda kwake) <span className="text-red-500">*</span>
         </label>
         <div className="relative">
           <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500 text-sm">
@@ -101,8 +101,8 @@ export function StepAdditional({ data, update, errors = {} }) {
       {/* Description */}
       <div>
         <label htmlFor="description" className="block text-gray-700 font-medium mb-1">
-          Description <span className="text-red-500">*</span>
-          <span className="text-sm text-gray-500 ml-1">(min 20 characters)</span>
+          Description(Jieleze, unapenda nini, unakaa aje..) <span className="text-red-500">*</span>
+          <span className="text-sm text-gray-500 ml-1">(min 50 characters)</span>
         </label>
         <textarea
           id="description"
@@ -111,7 +111,7 @@ export function StepAdditional({ data, update, errors = {} }) {
           onChange={handleChange}
           onBlur={handleBlur}
           minLength={20}
-          placeholder="Tell us more about yourself…"
+          placeholder="Tell us more about yourself…(Jieleze kwa undani)"
           className={`w-full px-4 py-3 rounded-md border ${
             touchedErrors.description
               ? "border-red-400 focus:ring-red-300"

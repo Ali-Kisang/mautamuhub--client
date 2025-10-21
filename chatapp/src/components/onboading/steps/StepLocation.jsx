@@ -202,10 +202,10 @@ export  function StepLocation({ data, update }) {
         >
           <div>
             <label htmlFor="localArea" className="block text-sm font-medium mb-2">
-              Local Area <span className="text-pink-600">(Optional)</span>
+              Local Area (Mtaa unaishi sahii) <span className="text-pink-600">(Optional)</span>
             </label>
             <input
-              id="localArea"
+              id="localArea (Mtaa yako)"
               type="text"
               placeholder="e.g. Caltex Donholm"
               value={data.localArea || ""}
@@ -215,12 +215,12 @@ export  function StepLocation({ data, update }) {
           </div>
           <div>
             <label htmlFor="roadStreet" className="block text-sm font-medium mb-2">
-              Road/Street <span className="text-pink-600">(Optional)</span>
+              Road/Street/Landmark (Ama jengo gani karibu) <span className="text-pink-600">(Optional)</span>
             </label>
             <input
               id="roadStreet"
               type="text"
-              placeholder="e.g. Moi Avenue"
+              placeholder="e.g. Donholm Savannah Road"
               value={data.roadStreet || ""}
               onChange={(e) => handleUpdate("roadStreet", e.target.value)}
               className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink focus:border-pink-300 transition"

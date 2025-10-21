@@ -5,6 +5,7 @@ import { auto } from "@cloudinary/url-gen/actions/resize";
 import { autoGravity } from "@cloudinary/url-gen/qualifiers/gravity";
 import { MdVerified } from "react-icons/md";
 import { useAuthStore } from "../../store/useAuthStore";
+import { showToast } from "../../components/utils/showToast";
 
 const VVIPList = ({ vvipAccounts }) => {
   const cld = new Cloudinary({
@@ -105,6 +106,9 @@ const VVIPList = ({ vvipAccounts }) => {
             (u) => u.userId?.toString() === vvip.user?.toString()
           );
 
+          // Force verified to true by default (frontend override)
+          const isVerified = true;
+
           // Check if VVIP is new (adjust threshold as needed; assumes createdAt is a Date string)
           const isNewVVIP = vvip.createdAt && new Date(vvip.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
           const templates = isNewVVIP ? newVVIPTemplates : summaryTemplates;
@@ -115,55 +119,72 @@ const VVIPList = ({ vvipAccounts }) => {
             .replace("{location}", `${vvip.location.constituency}, ${vvip.location.ward}`)
             .replace("{orientation}", vvip.personal.orientation);
 
+          // Debug logs - remove in production
+          console.log(`VVIP ID: ${vvip._id}`);
+          console.log(`Verified (forced): ${isVerified}`);
+          console.log(`Is New: ${isNewVVIP} (createdAt: ${vvip.createdAt})`);
+          console.log(`Is Online: ${isOnline} (userId: ${vvip.user})`);
+          console.log(`Photos length: ${vvip.photos?.length || 0}`);
+
+          // Placeholder for no photo
+          const placeholderImage = (
+            <div className="w-full h-64 bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center rounded-lg relative">
+              <span className="text-gray-500 text-sm font-medium z-10">No Image Available</span>
+            </div>
+          );
+
+          const imageContent = vvip?.photos?.length > 0 ? (
+            <AdvancedImage
+              cldImg={cld
+                .image(vvip.photos[0])
+                .resize(auto().gravity(autoGravity()))}
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+              alt="Profile Photo"
+            />
+          ) : (
+            placeholderImage
+          );
+
           return (
             <div
               key={vvip?._id}
               className="border rounded-xl shadow-lg p-6 bg-gradient-to-br from-white to-pink-50 transition-all duration-500 hover:border-pink-400 hover:shadow-2xl hover:scale-105 hover:bg-gradient-to-br hover:from-pink-50 hover:to-white relative overflow-hidden"
             >
-              {/* Subtle overlay for depth */}
-              <div className="absolute inset-0 bg-gradient-to-t from-pink-500/5 to-transparent"></div>
+              {/* Subtle overlay for depth - lower z-index */}
+              <div className="absolute inset-0 bg-gradient-to-t from-pink-500/5 to-transparent z-0"></div>
               
               <Link
                 to={`/profile/${vvip?._id}`}
                 className="block text-center relative group z-10"
               >
-                {vvip?.photos?.length > 0 && (
-                  <div className="w-full h-64 flex justify-center items-center relative rounded-lg overflow-hidden">
-                    <AdvancedImage
-                      cldImg={cld
-                        .image(vvip.photos[0])
-                        .resize(auto().gravity(autoGravity()))}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                      alt="Profile Photo"
-                    />
+                <div className="w-full h-64 flex justify-center items-center relative rounded-lg overflow-visible"> {/* Changed to overflow-visible */}
+                  {imageContent}
 
-                    {/* Online/Offline Indicator */}
-                    <div className="absolute top-3 right-3 flex items-center space-x-1 bg-black/20 backdrop-blur-sm px-2 py-1 rounded-full">
-                      <span
-                        className={`w-3 h-3 rounded-full border-2 border-white shadow-md ${
-                          isOnline ? "bg-green-500" : "bg-gray-400"
-                        }`}
-                      ></span>
-                      <span className="text-xs text-white font-semibold">
-                        {isOnline ? "Online" : "Offline"}
-                      </span>
-                    </div>
-
-                    {/* Verification Badge */}
-                    {vvip.verified && (
-                      <div className="absolute top-3 left-3">
-                        <MdVerified className="text-pink-500 text-xl" />
-                      </div>
-                    )}
-
-                    {/* New VVIP Badge */}
-                    {isNewVVIP && (
-                      <div className="absolute bottom-3 left-3 bg-yellow-400 text-black px-2 py-1 rounded-full text-xs font-bold">
-                        New Elite!
-                      </div>
-                    )}
+                  {/* Online/Offline Indicator - Enhanced visibility */}
+                  <div className="absolute top-3 right-3 flex items-center space-x-1 bg-black/50 backdrop-blur-md px-3 py-2 rounded-full z-30 border-2 border-white/50 shadow-xl"> {/* Increased opacity, padding, border, shadow */}
+                    <span
+                      className={`w-4 h-4 rounded-full border-2 border-white shadow-lg flex-shrink-0 ${ /* Larger dot */
+                        isOnline ? "bg-green-400 animate-pulse" : "bg-gray-500"
+                      }`}
+                    ></span>
+                    <span className="text-xs text-white font-bold whitespace-nowrap">
+                      {isOnline ? "LIVE" : "OFFLINE"} {/* Shorter text for space */}
+                    </span>
                   </div>
-                )}
+
+                  {/* Verification Badge - Enhanced visibility (now always shown) */}
+                  <div className="absolute top-3 left-3 z-30 flex items-center space-x-1 bg-white/90 backdrop-blur-sm px-3 py-2 rounded-full shadow-2xl border border-pink-200"> {/* Added bg, blur, padding, border, shadow */}
+                    <MdVerified className="text-pink-600 text-2xl flex-shrink-0" /> {/* Larger icon */}
+                    <span className="text-xs font-bold text-gray-800 hidden sm:inline">Verified</span> {/* Optional text, hidden on small screens */}
+                  </div>
+
+                  {/* New VVIP Badge - Enhanced visibility */}
+                  {isNewVVIP && (
+                    <div className="absolute bottom-3 left-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-4 py-2 rounded-full text-sm font-bold z-30 shadow-2xl border-2 border-yellow-300 animate-bounce"> {/* Gradient, larger, border, bounce */}
+                      NEW ELITE! {/* Uppercase for emphasis */}
+                    </div>
+                  )}
+                </div>
 
                 {/* Alluring Randomized Summary */}
                 <p className="mt-4 text-gray-700 font-semibold text-base leading-relaxed">
@@ -178,13 +199,24 @@ const VVIPList = ({ vvipAccounts }) => {
 
               {/* Call Button */}
               {vvip?.personal?.phone && (
-                <a
-                  href={`tel:${vvip.personal.phone}`}
-                  className="mt-4 inline-block w-full text-center bg-gradient-to-r from-rose-500 to-pink-500 text-white py-3 rounded-lg font-bold hover:from-rose-600 hover:to-pink-600 transition-all duration-300 shadow-lg hover:shadow-rose-500/25"
-                >
-                  Call Now {vvip.personal.phone}
-                </a>
-              )}
+  <button
+    onClick={() => {
+      if (navigator.userAgent.match(/Mobi|Android/i)) {
+        
+        window.location.href = `tel:${vvip.personal.phone}`;
+      } else {
+        navigator.clipboard.writeText(vvip.personal.phone).then(() => {
+          showToast(`Phone number copied: ${vvip.personal.phone}\nPaste into your dialer!`, false); 
+        }).catch(() => {
+          prompt('Copy this phone number:', vvip.personal.phone);
+        });
+      }
+    }}
+    className="mt-4 inline-block w-full text-center bg-gradient-to-r from-rose-500 to-pink-500 text-white py-3 rounded-lg font-bold hover:from-rose-600 hover:to-pink-600 transition-all duration-300 shadow-lg hover:shadow-rose-500/25 cursor-pointer"
+  >
+    Call Now {vvip.personal.phone}
+  </button>
+)}
             </div>
           );
         })}

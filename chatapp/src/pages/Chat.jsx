@@ -20,6 +20,8 @@ export default function Chat() {
   const [editingMessage, setEditingMessage] = useState(null);
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(true);
   const [typingUser, setTypingUser] = useState(null);
   const [receiverName, setReceiverName] = useState("User");
   const [showPickerFor, setShowPickerFor] = useState(null); // ✅ New: For emoji picker per message
@@ -55,6 +57,8 @@ export default function Chat() {
   useEffect(() => {
     if (!user?._id) return;
 
+    setIsLoadingMessages(true);
+
     socket.emit("joinRoom", user._id);
 
     // Socket listeners
@@ -64,10 +68,10 @@ export default function Chat() {
         // FIXED: Check if already in messages to avoid dupes from double emits
         setMessages((prev) => {
           if (prev.some((m) => m._id === msg._id)) {
-            console.log("Dupe message ignored:", msg._id); // Debug log
+            
             return prev;
           }
-          console.log("Adding new message:", msg._id); // Debug log
+         
           return [...prev, msg];
         });
 
@@ -77,16 +81,7 @@ export default function Chat() {
         });
 
         playNotificationSound();
-        showToast(`${receiverName}: ${msg.message}`, {
-          icon: <MessageCircle size={22} />,
-          duration: 4000,
-          style: {
-            background: "#fff",
-            color: "#333",
-            fontSize: "14px",
-          },
-          
-        }, false);
+        
       }
     });
 
@@ -167,6 +162,8 @@ export default function Chat() {
         }
       } catch (err) {
         console.error("Fetch messages error:", err);
+      } finally {
+        setIsLoadingMessages(false);
       }
     })();
 
@@ -209,6 +206,7 @@ export default function Chat() {
 
     if (editingMessage) {
       try {
+        setIsSending(true);
         const res = await api.put("/chat/edit", {
           messageId: editingMessage._id,
           newText: text,
@@ -222,11 +220,14 @@ export default function Chat() {
       } catch (err) {
        
         showToast("Failed to edit message", true);
+      } finally {
+        setIsSending(false);
       }
       return;
     }
 
     try {
+      setIsSending(true);
       const formData = new FormData();
       formData.append("receiverId", receiverId);
       formData.append("message", text);
@@ -251,6 +252,8 @@ export default function Chat() {
       showToast("Failed to send message", true);
       // Rollback optimistic if failed (optional)
       setMessages((prev) => prev.slice(0, -1));
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -373,141 +376,154 @@ export default function Chat() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col relative">
-        {messages.map((m) => {
-          const senderIdStr = m.senderId?._id?.toString() || m.senderId?.toString();
-          const isMine = senderIdStr === user._id.toString();
-          return (
-            <div
-              key={m._id}
-              className={`p-3 rounded-2xl shadow-sm max-w-[70%] break-words relative ${
-                isMine
-                  ? "ml-auto bg-pink-500 text-white rounded-br-sm"
-                  : "mr-auto bg-white text-gray-800 border rounded-bl-sm"
-              }`}
-            >
-              {m.deleted ? (
-                <p className="italic flex items-center space-x-1">
-                  <Trash2 className={`text-${isMine ? 'gray-300' : 'gray-800'}`} size={14} />
-                  <span className={`text-${isMine ? 'gray-300' : 'gray-600'}`}>This message was deleted</span>
-                </p>
-              ) : (
-                <>
-                  <p>{m.message}</p>
-                  {m.edited && (
-                    <span className={`text-[10px] italic opacity-70 ${isMine ? 'text-gray-200' : 'text-gray-500'}`}>
-                      (edited)
-                    </span>
-                  )}
-                </>
-              )}
-
-              <p className={`text-[10px] mt-1 opacity-60 flex items-center space-x-1 ${isMine ? 'text-gray-200' : 'text-gray-500'}`}>
-                <span>{moment(m.createdAt).fromNow()}</span>
-                {isMine && !m.deleted && (
-                  <>
-                    {m.status === "sent" && <span title="Sent">✔</span>}
-                    {m.status === "delivered" && (
-                      <Check
-                        className={`w-4 h-4 ${isMine ? "text-white" : "text-gray-800"}`}
-                        aria-label="Delivered"
-                      />
-                    )}
-                    {m.status === "seen" && (
-                      <CheckCheck
-                        className={`w-4 h-4 ${isMine ? "text-white" : "text-gray-800"}`}
-                        aria-label="Seen"
-                      />
-                    )}
-                  </>
-                )}
-              </p>
-
-              {isMine && !m.deleted && (
-                <div className="text-[11px] mt-1 flex space-x-3">
-                  <button
-                    onClick={() => handleEdit(m)}
-                    className="hover:underline text-yellow-100"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(m._id)}
-                    className="hover:underline text-red-100"
-                  >
-                    Delete
-                  </button>
-                </div>
-              )}
-
-              {/* ✅ Quick Emoji Buttons */}
-              {!m.deleted && (
-                <div className={`flex items-center gap-1 mt-1 ${isMine ? 'text-white' : 'text-gray-600'}`}>
-                  {['❤️', '👍', '😂', '😮', '😢'].map(emoji => (
-                    <button
-                      key={emoji}
-                      onClick={() => {
-                        if (hasReaction(m._id, emoji)) {
-                          removeReaction(m._id, emoji);
-                        } else {
-                          addReaction(m._id, emoji);
-                        }
-                      }}
-                      className={`text-lg transition-colors ${
-                        hasReaction(m._id, emoji) ? 'text-pink-300' : isMine ? 'text-gray-300 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'
-                      }`}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => setShowPickerFor(showPickerFor === m._id ? null : m._id)}
-                    className={`ml-2 text-sm ${isMine ? 'text-gray-300 hover:text-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
-                  >
-                    +{showPickerFor === m._id ? ' Hide' : ''}
-                  </button>
-                </div>
-              )}
-
-              {/* ✅ Render Reactions */}
-              {!m.deleted && (m.reactions || []).length > 0 && (
-                <div className={`flex gap-1 mt-1 ${isMine ? 'bg-white/10 rounded' : 'bg-gray-200 rounded'}`}>
-                  {Object.entries(
-                    (m.reactions || []).reduce((acc, r) => {
-                      acc[r.emoji] = (acc[r.emoji] || 0) + 1;
-                      return acc;
-                    }, {})
-                  ).map(([emoji, count]) => (
-                    <span key={emoji} className={`text-xs px-1 py-0.5 flex items-center gap-1 ${isMine ? 'bg-white/20 text-white' : 'bg-white text-gray-700'}`}>
-                      {emoji} {count}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {/* ✅ Emoji Picker (if open for this message) */}
-              {showPickerFor === m._id && (
-                <div className="absolute z-10 bottom-full right-0 mb-2">
-                  <EmojiPicker
-                    onEmojiClick={(emojiData) => addReaction(m._id, emojiData.emoji)}
-                    height={300}
-                  />
-                </div>
-              )}
+        {isLoadingMessages ? (
+          <div className="flex flex-col items-center justify-center flex-1 space-y-2">
+            <div className="flex items-center space-x-1">
+              <div className="w-3 h-3 bg-pink-500 rounded-full animate-bounce"></div>
+              <div className="w-3 h-3 bg-pink-400 rounded-full animate-bounce [animation-delay:0.1s]"></div>
+              <div className="w-3 h-3 bg-pink-300 rounded-full animate-bounce [animation-delay:0.2s]"></div>
             </div>
-          );
-        })}
-
-        {typingUser && (
-          <div className="flex items-center gap-2 mt-2">
-            <span className="text-gray-500 font-medium">{typingUser}</span>
-            <div className="flex gap-1">
-              <span className="w-2 h-2 bg-pink-500 rounded-full animate-bounce"></span>
-              <span className="w-2 h-2 bg-pink-500 rounded-full animate-bounce [animation-delay:-0.2s]"></span>
-              <span className="w-2 h-2 bg-pink-500 rounded-full animate-bounce [animation-delay:-0.4s]"></span>
-            </div>
+            <p className="text-gray-500 text-sm">Loading messages...</p>
           </div>
+        ) : (
+          <>
+            {messages.map((m) => {
+              const senderIdStr = m.senderId?._id?.toString() || m.senderId?.toString();
+              const isMine = senderIdStr === user._id.toString();
+              return (
+                <div
+                  key={m._id}
+                  className={`p-3 rounded-2xl shadow-sm max-w-[70%] break-words relative ${
+                    isMine
+                      ? "ml-auto bg-pink-500 text-white rounded-br-sm"
+                      : "mr-auto bg-white text-gray-800 border rounded-bl-sm"
+                  }`}
+                >
+                  {m.deleted ? (
+                    <p className="italic flex items-center space-x-1">
+                      <Trash2 className={`text-${isMine ? 'gray-300' : 'gray-800'}`} size={14} />
+                      <span className={`text-${isMine ? 'gray-300' : 'gray-600'}`}>This message was deleted</span>
+                    </p>
+                  ) : (
+                    <>
+                      <p>{m.message}</p>
+                      {m.edited && (
+                        <span className={`text-[10px] italic opacity-70 ${isMine ? 'text-gray-200' : 'text-gray-500'}`}>
+                          (edited)
+                        </span>
+                      )}
+                    </>
+                  )}
+
+                  <p className={`text-[10px] mt-1 opacity-60 flex items-center space-x-1 ${isMine ? 'text-gray-200' : 'text-gray-500'}`}>
+                    <span>{moment(m.createdAt).fromNow()}</span>
+                    {isMine && !m.deleted && (
+                      <>
+                        {m.status === "sent" && <span title="Sent">✔</span>}
+                        {m.status === "delivered" && (
+                          <Check
+                            className={`w-4 h-4 ${isMine ? "text-white" : "text-gray-800"}`}
+                            aria-label="Delivered"
+                          />
+                        )}
+                        {m.status === "seen" && (
+                          <CheckCheck
+                            className={`w-4 h-4 ${isMine ? "text-white" : "text-gray-800"}`}
+                            aria-label="Seen"
+                          />
+                        )}
+                      </>
+                    )}
+                  </p>
+
+                  {isMine && !m.deleted && (
+                    <div className="text-[11px] mt-1 flex space-x-3">
+                      <button
+                        onClick={() => handleEdit(m)}
+                        className="hover:underline text-yellow-100"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(m._id)}
+                        className="hover:underline text-red-100"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
+
+                  {/* ✅ Quick Emoji Buttons */}
+                  {!m.deleted && (
+                    <div className={`flex items-center gap-1 mt-1 ${isMine ? 'text-white' : 'text-gray-600'}`}>
+                      {['❤️', '👍', '😂', '😮', '😢'].map(emoji => (
+                        <button
+                          key={emoji}
+                          onClick={() => {
+                            if (hasReaction(m._id, emoji)) {
+                              removeReaction(m._id, emoji);
+                            } else {
+                              addReaction(m._id, emoji);
+                            }
+                          }}
+                          className={`text-lg transition-colors ${
+                            hasReaction(m._id, emoji) ? 'text-pink-300' : isMine ? 'text-gray-300 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'
+                          }`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => setShowPickerFor(showPickerFor === m._id ? null : m._id)}
+                        className={`ml-2 text-sm ${isMine ? 'text-gray-300 hover:text-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
+                      >
+                        +{showPickerFor === m._id ? ' Hide' : ''}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* ✅ Render Reactions */}
+                  {!m.deleted && (m.reactions || []).length > 0 && (
+                    <div className={`flex gap-1 mt-1 ${isMine ? 'bg-white/10 rounded' : 'bg-gray-200 rounded'}`}>
+                      {Object.entries(
+                        (m.reactions || []).reduce((acc, r) => {
+                          acc[r.emoji] = (acc[r.emoji] || 0) + 1;
+                          return acc;
+                        }, {})
+                      ).map(([emoji, count]) => (
+                        <span key={emoji} className={`text-xs px-1 py-0.5 flex items-center gap-1 ${isMine ? 'bg-white/20 text-white' : 'bg-white text-gray-700'}`}>
+                          {emoji} {count}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* ✅ Emoji Picker (if open for this message) */}
+                  {showPickerFor === m._id && (
+                    <div className="absolute z-10 bottom-full right-0 mb-2">
+                      <EmojiPicker
+                        onEmojiClick={(emojiData) => addReaction(m._id, emojiData.emoji)}
+                        height={300}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {typingUser && (
+              <div className="flex items-center gap-2 mt-2">
+              
+                <div className="flex gap-1">
+                  <span className="w-2 h-2 bg-pink-500 rounded-full animate-bounce"></span>
+                  <span className="w-2 h-2 bg-pink-500 rounded-full animate-bounce [animation-delay:-0.2s]"></span>
+                  <span className="w-2 h-2 bg-pink-500 rounded-full animate-bounce [animation-delay:-0.4s]"></span>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef}></div>
+          </>
         )}
-        <div ref={messagesEndRef}></div>
       </div>
 
       {/* Input */}
@@ -538,16 +554,17 @@ export default function Chat() {
                 sendMessage();
               }
             }}
+            disabled={isSending}
             className="
               flex-1 rounded-2xl border border-gray-300 
               px-4 py-3 text-sm 
               focus:outline-none focus:ring-2 focus:ring-pink-400
-              transition duration-200
+              transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed
             "
           />
           <button
             onClick={sendMessage}
-            disabled={!text.trim()}
+            disabled={isSending || !text.trim()}
             className="
               flex items-center justify-center 
               bg-pink-500 hover:bg-pink-600 disabled:bg-gray-300 disabled:cursor-not-allowed
@@ -558,7 +575,15 @@ export default function Chat() {
               focus:outline-none focus:ring-2 focus:ring-pink-300
             "
           >
-            <Send className="w-5 h-5" />
+            {isSending ? (
+              <div className="flex items-center space-x-0.5">
+                <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce"></div>
+                <div className="w-1.5 h-1.5 bg-white/80 rounded-full animate-bounce [animation-delay:0.1s]"></div>
+                <div className="w-1.5 h-1.5 bg-white/60 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+              </div>
+            ) : (
+              <Send className="w-5 h-5" />
+            )}
           </button>
         </div>
       </div>

@@ -93,7 +93,7 @@ const StepAccountType = ({ selected, setSelected }) => {
   return (
     <div>
       <h2 className="text-2xl text-pink-600 font-semibold mb-6">
-        Select Your Account Type
+        Select Your Account Type(Chagua Aina Ya Akaunti Yako, Soma kwa maelezo hapo chini, hautozwi kwa siku 7 za kwanza)
       </h2>
       <p className="text-gray-600 mb-6 text-center">
         Choose your starting tier—get a free 7-day trial! Upgrade later to extend with paid plans.

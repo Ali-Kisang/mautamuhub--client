@@ -139,18 +139,14 @@ export default function RecentChatsList({ selectedUser }) {
     };
   }, [user, incrementUnread, fetchRecentConversations, setOnlineUsers]); // Add setOnlineUsers dep
 
-  const handleSelectUser = async (convo) => {
+  const handleSelectUser = (convo) => {
     if (convo.userId === user._id) return;
 
     clearUnreadForUser(convo.userId);
-    try {
-      await api.put(`/chat/mark-read/${convo.userId}`);
-      // Refetch after mark to update list
-      const { data } = await api.get("/chat/recent");
-      setConversations(data);
-    } catch (err) {
+    // Background mark read (no await to avoid delay)
+    api.put(`/chat/mark-read/${convo.userId}`).catch(err => {
       console.error("Failed to mark read:", err);
-    }
+    });
 
     navigate(`/chat/${convo.userId}`);
   };

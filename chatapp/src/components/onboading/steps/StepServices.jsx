@@ -75,7 +75,7 @@ export function StepServices({ data, update }) {
     <div className="p-4 space-y-6">
       <h2 className="text-xl font-semibold text-gray-800">Select Services</h2>
       <p className="text-sm text-gray-600">
-        Choose from the list below or add your own service if it’s not listed.
+        Choose from the list below or add your own service if it’s not listed.(Chagua😉🥵🥵)
       </p>
 
       {/* Services Grid */}

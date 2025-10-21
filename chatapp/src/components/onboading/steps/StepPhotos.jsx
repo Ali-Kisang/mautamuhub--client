@@ -61,7 +61,6 @@ const StepPhotos = ({ data, updateData, accountType }) => {
         if (typeof item === "string") {
           return { url: optimizeImage(item), isFile: false, index };
         }
-        console.warn(`⚠️ Invalid photo at index ${index}:`, item);  // Debug invalid items
         return null;
       })
       .filter(Boolean);
@@ -95,9 +94,8 @@ const StepPhotos = ({ data, updateData, accountType }) => {
 
     // ✅ Update with new Files (preserve existing)
     const updatedPhotos = [...currentValidPhotos, ...imageFiles];
-    console.log('📸 Updated Photos in StepPhotos:', updatedPhotos.length, 'items (Files preserved)');  // Debug
     updateData(updatedPhotos);
-    showToast(`${imageFiles.length} photo(s) added successfully!`);
+    showToast(`${imageFiles.length} photo(s) added successfully!`, false);
   };
 
   const handleFileUpload = (event) => {
@@ -117,7 +115,7 @@ const StepPhotos = ({ data, updateData, accountType }) => {
     let updatedPhotos;
     if (typeof photoToRemove === "string") {
       try {
-        setLoading(true); // ✅ show loader before API call
+        setLoading(true); 
 
         await api.delete(`/users/profile/photos/${encodeURIComponent(photoToRemove)}`);
       } catch (error) {
@@ -125,7 +123,7 @@ const StepPhotos = ({ data, updateData, accountType }) => {
         showToast("Failed to remove photo. Please try again.", true);
         return;
       } finally {
-        setLoading(false); // ✅ hide loader after API call
+        setLoading(false); 
       }
 
       // If successful, update
@@ -140,7 +138,7 @@ const StepPhotos = ({ data, updateData, accountType }) => {
         URL.revokeObjectURL(preview.url);
       }
       updateData(updatedPhotos);
-      showToast("Photo removed successfully.");
+      showToast("Photo removed successfully.", false);
     }
   };
 
@@ -153,7 +151,7 @@ const StepPhotos = ({ data, updateData, accountType }) => {
           aria-live="polite"
         >
           <l-dot-stream size="60" speed="2.5" color="#ec4899"></l-dot-stream>
-          <p className="text-pink-500 font-medium">Loading your profile...</p>
+          <p className="text-pink-500 font-medium">Loading Photos...</p>
         </div>
       )}
 
@@ -192,7 +190,7 @@ const StepPhotos = ({ data, updateData, accountType }) => {
             </label>
           </div>
 
-          <h2 className="text-lg font-bold mb-4 text-pink-600">Uploaded Photos</h2>
+          <h2 className="text-lg font-bold mb-4 text-pink-600">Uploaded Photos (Chagua Picha zako, usipitishe kiwango inayotakikana)</h2>
           <p className="text-sm text-gray-600 mb-4">
             Max gallery photos allowed: {photoLimit}
           </p>

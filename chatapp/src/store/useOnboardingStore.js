@@ -45,9 +45,12 @@ export const useOnboardingStore = create(
         })),
     }),
     {
-      name: "onboarding-storage", 
+      name: "onboarding-storage",
       partialize: (state) => ({
-        formData: state.formData,
+        formData: {
+          ...state.formData,
+          photos: undefined, 
+        },
         step: state.step,
       }),
     }
