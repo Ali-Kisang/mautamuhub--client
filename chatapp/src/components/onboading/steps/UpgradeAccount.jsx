@@ -8,20 +8,20 @@ import api from "../../../utils/axiosInstance";
 import { showToast } from "../../utils/showToast";
 import { DotStream } from "ldrs/react";
 import { MdVerified } from "react-icons/md";
-import { DollarSign } from "lucide-react"; // ✅ NEW: For balance icon
+import { DollarSign } from "lucide-react";
 
 export default function UpgradeAccount() {
   const { user } = useAuthStore();
   const [currentProfile, setCurrentProfile] = useState(null);
-  const [balance, setBalance] = useState(0); // ✅ NEW: Balance state
+  const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [paymentStatus, setPaymentStatus] = useState('idle');  
+  const [paymentStatus, setPaymentStatus] = useState('idle');
   const [checkoutRequestID, setCheckoutRequestID] = useState(null);
   const [intervalId, setIntervalId] = useState(null);
   const [timeoutId, setTimeoutId] = useState(null);
   const [pollStartTime, setPollStartTime] = useState(null);
   const [selectedType, setSelectedType] = useState(null);
-  const [selectedDurations, setSelectedDurations] = useState({});  
+  const [selectedDurations, setSelectedDurations] = useState({});
   const navigate = useNavigate();
 
   const accountTiers = [
@@ -35,7 +35,7 @@ export default function UpgradeAccount() {
     },
     {
       type: "VIP",
-      pricing: { 3: 450, 7: 850, 15: 1650, 30: 2800 },  
+      pricing: { 3: 450, 7: 850, 15: 1650, 30: 2800 },
       durationOptions: [3, 7, 15, 30],
       benefits: ["Priority in county searches", "Post up to 6 photos", "Real-time chat", "Featured placement", "Standard support"],
       verified: false,
@@ -69,11 +69,10 @@ export default function UpgradeAccount() {
         setLoading(false);
         return;
       }
-
       try {
         const res = await api.get("/users/check-profile");
         setCurrentProfile(res.data.hasProfile ? res.data.profile : null);
-        setBalance(res.data.balance || 0); // ✅ NEW: Set balance from response
+        setBalance(res.data.balance || 0);
       } catch (err) {
         console.error("Fetch profile error:", err);
         showToast("Could not load profile status", true);
@@ -81,67 +80,57 @@ export default function UpgradeAccount() {
         setLoading(false);
       }
     };
-
     fetchCurrentProfile();
   }, [user?._id]);
 
-  // Poll for transaction status - Updated to use dedicated endpoint for direct query by CheckoutRequestID
   const pollTransactionStatus = async (checkoutRequestId) => {
     const token = localStorage.getItem("token");
     if (!token) return false;
-
     try {
-      // New endpoint: /api/payments/transaction-status?checkoutRequestID=...
       const res = await api.get(`/payments/transaction-status?checkoutRequestID=${checkoutRequestId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const latestTx = res.data.transaction;  
-      console.log('Polling tx:', latestTx); 
+      const latestTx = res.data.transaction;
       if (!latestTx) return false;
 
-      // Safeguard: Ensure this is the correct transaction (prevents old successes from interfering)
       if (latestTx.CheckoutRequestID !== checkoutRequestId) {
-        console.warn('Transaction ID mismatch! Expected:', checkoutRequestId, 'Got:', latestTx.CheckoutRequestID);
-        return false; // Continue polling—don't trust mismatched tx
+        showToast('Transaction ID mismatch! Retrying...', true);
+        return false;
       }
 
       const expectedAmount = accountTiers.find(t => t.type === selectedType)?.pricing[selectedDurations[selectedType]];
       const expectedType = selectedType;
       if (latestTx.Amount !== expectedAmount || latestTx.accountType !== expectedType) {
-        console.warn('Transaction details mismatch! Expected amount:', expectedAmount, 'type:', expectedType, 'Got:', latestTx.Amount, latestTx.accountType);
-        return false; // Mismatch—likely wrong tx, continue
+        showToast('Transaction details mismatch! Retrying...', true);
+        return false;
       }
 
-      // Robust check: Prioritize M-Pesa resultCode if available (from callback), fallback to status
-      const resultCode = latestTx.resultCode; // Safe access
+      const resultCode = latestTx.resultCode;
       const resultDesc = latestTx.resultDesc;
       const status = latestTx.status;
 
       const isSuccess = resultCode === 0 || status === 'SUCCESS';
-      const isFailure = (resultCode != null && resultCode !== 0) || // Only if defined and non-zero
-                        status === 'FAILED' || status === 'CANCELLED' ||
-                        (resultDesc && (resultDesc.includes('No response') || resultDesc.includes('Request Cancelled')));
-
-      console.log('Status check:', { status, resultCode, resultDesc, isSuccess, isFailure, expectedAmount, expectedType }); // Enhanced debug
+      const isFailure = (resultCode != null && resultCode !== 0) ||
+        status === 'FAILED' || status === 'CANCELLED' ||
+        (resultDesc && (resultDesc.includes('No response') || resultDesc.includes('Request Cancelled')));
 
       if (isSuccess) {
-        // Prevent premature success before user has time to enter PIN (min 10 seconds after initiation)
         if (pollStartTime && Date.now() - pollStartTime < 10000) {
-          console.log('Success detected but too early—continuing poll');
-          return false; // Continue polling
+          return false;
         }
         setPaymentStatus('success');
-        showToast(`Upgraded to ${selectedType} successfully! Proration applied via wallet.`, false);
+        showToast(resultDesc || `Upgraded to ${selectedType} successfully!`, false);
         setTimeout(() => navigate('/profile'), 2000);
         return true;
       } else if (isFailure) {
         setPaymentStatus('failed');
-        showToast("Payment failed. You can retry below.", true);
+        showToast(resultDesc || "Payment failed. You can retry below.", true);
         return true;
       }
       return false;
     } catch (err) {
       console.error("Polling error:", err);
+      showToast("Error polling transaction status. Please retry.", true);
       return false;
     }
   };
@@ -151,7 +140,6 @@ export default function UpgradeAccount() {
     handleUpgrade();
   };
 
-  // Initiate upgrade payment
   const handleUpgrade = async () => {
     if (!selectedType || paymentStatus !== 'idle') return;
     const duration = selectedDurations[selectedType];
@@ -165,7 +153,6 @@ export default function UpgradeAccount() {
       return;
     }
     setPaymentStatus('pending');
-
     try {
       const token = localStorage.getItem("token");
       const tier = accountTiers.find(t => t.type === selectedType);
@@ -177,29 +164,31 @@ export default function UpgradeAccount() {
         phone,
         accountType: selectedType,
         duration,
-        profileData: {  // Minimal—backend queues full if needed; added verified for explicitness
+        profileData: {
           accountType: { type: selectedType, amount, duration, verified: tier.verified },
         },
       }, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
+      // Catch and toast ALL backend messages:
+      if (res.data.message) showToast(res.data.message, false);
+      if (res.data.error) showToast(res.data.error, true);
+
       if (res.data.requiresPayment) {
         setCheckoutRequestID(res.data.checkoutRequestID);
-        setPollStartTime(Date.now()); // Start timing for minimum PIN entry delay
-        showToast("Payment initiated! Check your M-Pesa for PIN prompt. Proration will be calculated after.", false);
-        
+        setPollStartTime(Date.now());
         const timeoutIdLocal = setTimeout(() => {
           if (paymentStatus === 'pending') {
             clearInterval(intervalId);
             setPaymentStatus('failed');
             showToast("Payment timeout. Please try again.", true);
           }
-        }, 300000);  // 5 min
+        }, 300000);
         setTimeoutId(timeoutIdLocal);
 
         let retries = 0;
-        const maxRetries = 60;  // ~5 min at 5s intervals
+        const maxRetries = 60;
         const interval = setInterval(async () => {
           if (paymentStatus !== 'pending') {
             clearInterval(interval);
@@ -219,10 +208,8 @@ export default function UpgradeAccount() {
             clearTimeout(timeoutId);
           }
         }, 5000);
-
         setIntervalId(interval);
       } else {
-        // Free upgrade? (unlikely post-trial)
         showToast(`Upgraded to ${selectedType} for ${duration} days successfully!`, false);
         setTimeout(() => navigate('/profile'), 1500);
       }
@@ -233,7 +220,7 @@ export default function UpgradeAccount() {
     }
   };
 
-  // Cleanup
+  // Cleanup intervals and timeouts
   useEffect(() => {
     return () => {
       if (intervalId) clearInterval(intervalId);
@@ -258,15 +245,12 @@ export default function UpgradeAccount() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-rose-50 py-8 px-4">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Upgrade Your Account</h1>
           <p className="text-gray-600">
             {isOnTrial ? "Your trial is standalone—upgrade to any paid plan (Regular, VIP, VVIP, or Spa) to continue!" : "Choose your next plan."}
           </p>
         </div>
-
-        {/* Current Status */}
         {currentProfile && (
           <div className="bg-white rounded-xl shadow-sm p-6 mb-8 text-center">
             <h2 className="text-xl font-semibold mb-2">Your Current Plan</h2>
@@ -278,9 +262,8 @@ export default function UpgradeAccount() {
               )}
             </span>
             {isOnTrial && (
-              <p className="text-sm text-blue-600 mt-2">Standalone trial active—upgrade anytime to Regular or higher!. You cannot upgrade your current account(Selected) you can either Upgrade or degrade the account type.</p>
+              <p className="text-sm text-blue-600 mt-2">Standalone trial active—upgrade anytime to Regular or higher! You cannot upgrade your current account (Selected) you can either Upgrade or degrade the account type.</p>
             )}
-            {/* ✅ NEW: Balance display */}
             <p className="text-sm text-gray-600 mt-2 flex items-center justify-center gap-1">
               <DollarSign className="w-4 h-4" />
               Wallet Balance: Ksh {balance}
@@ -288,7 +271,6 @@ export default function UpgradeAccount() {
           </div>
         )}
 
-        {/* Tiers Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {accountTiers.map((tier) => {
             const selectedDuration = selectedDurations[tier.type] || tier.durationOptions[0];
@@ -313,7 +295,6 @@ export default function UpgradeAccount() {
                     Ksh {amount}
                   </div>
                   <div className="text-sm text-gray-600 mb-2">{selectedDuration} days</div>
-                  {/* Duration Selector - Enabled always for preview; gray if not selected */}
                   <select
                     className={`w-full border rounded px-2 py-1 mb-4 text-sm ${
                       !isSelected ? 'bg-gray-50 text-gray-500' : ''
@@ -329,7 +310,6 @@ export default function UpgradeAccount() {
                       </option>
                     ))}
                   </select>
-                  {/* Pricing Preview Table */}
                   <div className="mt-2 text-xs text-gray-500 mb-4 text-left">
                     <p className="text-center font-medium mb-1">Pricing Options:</p>
                     {tier.durationOptions.map((days) => (
@@ -371,7 +351,6 @@ export default function UpgradeAccount() {
           })}
         </div>
 
-        {/* CTA Section */}
         {selectedType && (
           <div className="bg-white rounded-xl shadow-sm p-6 text-center mb-8">
             <h3 className="text-xl font-semibold mb-4">Ready to upgrade to {selectedType}?</h3>
@@ -385,9 +364,10 @@ export default function UpgradeAccount() {
               aria-label={`Upgrade to ${selectedType} for ${selectedDurations[selectedType]} days`}
             >
               <CreditCard className="w-5 h-5" />
-              {paymentStatus === 'pending' ? "Processing Payment..." : `Upgrade for Ksh ${accountTiers.find(t => t.type === selectedType)?.pricing[selectedDurations[selectedType]]}`}
+              {paymentStatus === 'pending'
+                ? "Processing Payment..."
+                : `Upgrade for Ksh ${accountTiers.find(t => t.type === selectedType)?.pricing[selectedDurations[selectedType]]}`}
             </button>
-            {/* ✅ NEW: Balance display in CTA */}
             <p className="text-sm text-gray-600 mt-2 flex items-center justify-center gap-1">
               <DollarSign className="w-4 h-4" />
               Current Balance: Ksh {balance}
@@ -395,7 +375,6 @@ export default function UpgradeAccount() {
           </div>
         )}
 
-        {/* Payment Status */}
         {paymentStatus === 'pending' && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center" role="status" aria-live="polite">
             <p className="text-yellow-800 font-medium mb-2">⏳ Awaiting payment confirmation</p>
@@ -421,8 +400,6 @@ export default function UpgradeAccount() {
             <p className="text-sm text-green-700">Proration applied. Redirecting to your profile...</p>
           </div>
         )}
-
-        {/* Footer Link */}
         <div className="text-center">
           <Link
             to="/profile"

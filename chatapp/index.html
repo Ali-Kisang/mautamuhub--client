@@ -42,6 +42,17 @@
         "inLanguage": "en-KE"
       }
     </script>
+
+    <!-- ✅ NEW: Preloads for critical resources (dev mode uses dynamic injection; for prod, see notes below) -->
+    <!-- In dev, Vite handles CSS/JS dynamically. For prod: After npm run build, edit dist/index.html with actual hashes. -->
+    <!-- Example for prod (replace hashes): -->
+    <!-- <link rel="preload" href="/assets/index-[css-hash].css" as="style" onload="this.onload=null; this.rel='stylesheet'"> -->
+    <!-- <noscript><link rel="stylesheet" href="/assets/index-[css-hash].css"></noscript> -->
+    <!-- <link rel="preload" href="/assets/index-[js-hash].js" as="script"> -->
+    <!-- Preload hero/LCP image (adjust path to your Hero component's main img) -->
+    <!-- <link rel="preload" href="/assets/hero-bg.webp" as="image" type="image/webp"> -->
+    <!-- Fonts (if using custom, e.g., via Tailwind): -->
+    <!-- <link rel="preload" href="/fonts/inter-variable.woff2" as="font" type="font/woff2" crossorigin> -->
   </head>
   <body>
     <div id="root"></div>
