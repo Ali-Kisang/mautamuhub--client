@@ -1,11 +1,9 @@
-
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { useAuthStore } from "../../store/useAuthStore";
-import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 
-// 👉 Custom Arrow Components
+// 👉 Custom Arrow Components (unchanged)
 const NextArrow = (props) => {
   const { className, onClick } = props;
   return (
@@ -28,27 +26,31 @@ const PrevArrow = (props) => {
   );
 };
 
+// ✅ NEW: Lazy-load Slider (defers ~200KB until after titles)
+const LazySlider = lazy(() => import("react-slick"));
+
 export default function Header() {
   const { onlineUsers } = useAuthStore();
   const [titleIndex, setTitleIndex] = useState(0);
   const [fade, setFade] = useState(true);
 
+  // ✅ UPDATED: Paths to .webp (generated on VPS build)
   const slides = [
-    { image: "/slides/alone.jpg", message: "💋 I'm alone in my room, talk to me now!" },
-    { image: "/slides/naked.jpg", message: "🔥 I'm naked and waiting… come see!" },
-    { image: "/slides/call.jpg", message: "💞 Just one minute away — call now!" },
-    { image: "/slides/dripping.jpg", message: "👅 I'm dripping with desire right now!" },
-    { image: "/slides/bed.jpg", message: "🛏️ My bed is cold, warm it up?" },
-    { image: "/slides/dressed.jpg", message: "👠 Dressed for you only, ready anytime!" },
-    { image: "/slides/hot.jpg", message: "🥵 Too hot to handle, dare you try?" },
-    { image: "/slides/gallery.jpg", message: "📸 Peek my private gallery 👀" },
-    { image: "/slides/date.jpg", message: "💌 I want your attention… now!" },
-    { image: "/slides/touch.jpg", message: "😈 Touch me with your words!" },
-    { image: "/slides/wet.jpg", message: "💦 I'm wet… and waiting!" },
-    { image: "/slides/naughty.jpg", message: "🎀 Let’s get naughty tonight!" },
-    { image: "/slides/chat.jpg", message: "🔥 Lonely nights need hot chats!" },
-    { image: "/slides/sweet.jpg", message: "🧁 Sweet, naughty & available now!" },
-    { image: "/slides/pleasure.jpg", message: "📞 1 call away from pleasure!" },
+    { image: "/slides/alone.webp", message: "💋 I'm alone in my room, talk to me now!" },
+    { image: "/slides/naked.webp", message: "🔥 I'm naked and waiting… come see!" },
+    { image: "/slides/call.webp", message: "💞 Just one minute away — call now!" },
+    { image: "/slides/dripping.webp", message: "👅 I'm dripping with desire right now!" },
+    { image: "/slides/bed.webp", message: "🛏️ My bed is cold, warm it up?" },
+    { image: "/slides/dressed.webp", message: "👠 Dressed for you only, ready anytime!" },
+    { image: "/slides/hot.webp", message: "🥵 Too hot to handle, dare you try?" },
+    { image: "/slides/gallery.webp", message: "📸 Peek my private gallery 👀" },
+    { image: "/slides/date.webp", message: "💌 I want your attention… now!" },
+    { image: "/slides/touch.webp", message: "😈 Touch me with your words!" },
+    { image: "/slides/wet.webp", message: "💦 I'm wet… and waiting!" },
+    { image: "/slides/naughty.webp", message: "🎀 Let’s get naughty tonight!" },
+    { image: "/slides/chat.webp", message: "🔥 Lonely nights need hot chats!" },
+    { image: "/slides/sweet.webp", message: "🧁 Sweet, naughty & available now!" },
+    { image: "/slides/pleasure.webp", message: "📞 1 call away from pleasure!" },
   ];
 
   const rotatingTitles = [
@@ -78,7 +80,7 @@ export default function Header() {
 
   const onlineCount = onlineUsers?.length || 0;
 
-  // 👉 react-slick settings
+  // 👉 react-slick settings (unchanged)
   const carouselSettings = {
     dots: true,
     infinite: true,
@@ -99,9 +101,14 @@ export default function Header() {
     ),
   };
 
+  // ✅ NEW: Inline online count (cleaner)
+  const displayCount = onlineCount === 0 
+    ? Math.floor(Math.random() * (80 - 40 + 1)) + 40  
+    : onlineCount;
+
   return (
-    <div className="w-full  min-h-screen  flex-col items-center justify-center bg-gradient-to-br from-pink-200 via-rose-100 to-pink-50 px-4 py-12">
-      {/* Title Section */}
+    <div className="w-full min-h-screen flex-col items-center justify-center bg-gradient-to-br from-pink-200 via-rose-100 to-pink-50 px-4 py-12">
+      {/* Title Section (LCP—paints fast) */}
       <div className="text-center mb-6 min-h-[120px] space-y-2">
         <h1
           className={`text-3xl md:text-5xl font-extrabold text-rose-700 transition-opacity duration-500 ${
@@ -128,47 +135,47 @@ export default function Header() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
           </span>
-       {(() => {
-  const displayCount = onlineCount === 0 
-    ? Math.floor(Math.random() * (80 - 40 + 1)) + 40  
-    : onlineCount;
-  return (
-    <span className="text-green-700 font-semibold">
-      {displayCount} users online now!
-    </span>
-  );
-})()}
+          <span className="text-green-700 font-semibold">
+            {displayCount} users online now!
+          </span>
         </div>
       </div>
 
-      {/* Carousel */}
-      <div className="w-full h-full max-w-5xl mx-auto rounded-lg shadow-2xl overflow-hidden bg-pink-150">
-  <Slider {...carouselSettings}>
-    {slides.map((slide, index) => (
-      <div
-        key={index}
-        className="relative flex justify-center items-center h-[400px] md:h-[500px] bg-pink-150"
-      >
-        <img
-          src={slide.image}
-          alt={`Slide ${index + 1}`}
-          className="block max-h-full max-w-full object-contain mx-auto"
-        />
-        <div className="absolute bottom-6 left-6 right-6 bg-rose-900 bg-opacity-70 text-white text-center p-4 rounded-lg shadow-md">
-          <h2 className="text-lg md:text-2xl font-semibold">
-            {slide.message}
-          </h2>
+      {/* ✅ NEW: Suspense + LazySlider (defers carousel until titles load) */}
+      <Suspense fallback={<div className="w-full h-[400px] md:h-[500px] bg-pink-150 flex items-center justify-center text-gray-500 rounded-lg shadow-2xl">Loading hot previews...</div>}>
+        <div className="w-full h-full max-w-5xl mx-auto rounded-lg shadow-2xl overflow-hidden bg-pink-150">
+          <LazySlider {...carouselSettings}>
+            {slides.map((slide, index) => (
+              <div
+                key={index}
+                className="relative flex justify-center items-center h-[400px] md:h-[500px] bg-pink-150"
+              >
+                {/* ✅ NEW: <picture> for WebP + JPG fallback, loading attrs, dimensions (no CLS) */}
+                <picture>
+                  <source srcSet={slide.image} type="image/webp" />
+                  <img
+                    src={slide.image.replace('.webp', '.jpg')}  // Fallback
+                    alt={`Slide ${index + 1}`}
+                    className="block max-h-full max-w-full object-contain mx-auto"
+                    loading={index === 0 ? "eager" : "lazy"}  // First eager (LCP), rest lazy
+                    width="800"
+                    height="500"
+                  />
+                </picture>
+                <div className="absolute bottom-6 left-6 right-6 bg-rose-900 bg-opacity-70 text-white text-center p-4 rounded-lg shadow-md">
+                  <h2 className="text-lg md:text-2xl font-semibold">
+                    {slide.message}
+                  </h2>
+                </div>
+              </div>
+            ))}
+          </LazySlider>
         </div>
-      </div>
-    ))}
-  </Slider>
-</div>
+      </Suspense>
 
-
-
-      {/* CTA Buttons */}
+      {/* CTA Buttons (unchanged) */}
       <div className="flex flex-col sm:flex-row justify-center gap-4 mt-10 text-center">
-        <button  className="btn btn-primary animate-pulse text-lg px-8 py-3 bg-pink-600 hover:bg-pink-700 text-white rounded-lg font-semibold">
+        <button className="btn btn-primary animate-pulse text-lg px-8 py-3 bg-pink-600 hover:bg-pink-700 text-white rounded-lg font-semibold">
           💌 Chat with Me Now
         </button>
         <button className="btn btn-secondary animate-pulse text-lg px-8 py-3 bg-pink-500 hover:bg-pink-600 text-white rounded-lg font-semibold">
