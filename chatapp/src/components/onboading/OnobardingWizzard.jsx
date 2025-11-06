@@ -187,8 +187,12 @@ export default function OnBoarding() {
           return;
         }
         photoFiles.forEach((photo) => {
-          fd.append("photos", photo);
-        });
+  if (photo.size > 10 * 1024 * 1024) {  // 10MB limit
+    showToast(`File ${photo.name} exceeds 10MB—please resize.`);
+    return;  
+  }
+  fd.append("photos", photo);
+});
       } 
 
       console.log('🔍 FormData Entries Being Sent:');
@@ -204,8 +208,7 @@ export default function OnBoarding() {
       // Send request (multipart for files)
       const res = await api.put("/users/profile", fd, {
         headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${token}`
         },
       });
 
@@ -263,8 +266,9 @@ export default function OnBoarding() {
         message: err.message,
         status: err.response?.status,
         backendError: err.response?.data,
+        request: err.request,
       });
-      showToast(`Submit failed: ${err.response?.data?.message || err.message || 'Unknown error'}`, true);
+      showToast(`Submit failed: ${err.response?.data?.message || err.message || 'Network error-check console'}`, true);
       setIsSubmitting(false);
       setPaymentStatus('idle');
     }
