@@ -1,70 +1,23 @@
-import { useEffect, useState, lazy, Suspense } from "react";
+import { useEffect, useState } from "react";
 import { useAuthStore } from "../../store/useAuthStore";
-import "slick-carousel/slick/slick.css";
-import "slick-carousel/slick/slick-theme.css";
-
-// 👉 Custom Arrow Components (unchanged)
-const NextArrow = (props) => {
-  const { className, onClick } = props;
-  return (
-    <div
-      className={`${className} !flex !items-center !justify-center !bg-pink-500 hover:!bg-pink-600 !rounded-full`}
-      style={{ right: "10px", zIndex: 2 }}
-      onClick={onClick}
-    />
-  );
-};
-
-const PrevArrow = (props) => {
-  const { className, onClick } = props;
-  return (
-    <div
-      className={`${className} !flex !items-center !justify-center !bg-pink-500 hover:!bg-pink-600 !rounded-full`}
-      style={{ left: "10px", zIndex: 2 }}
-      onClick={onClick}
-    />
-  );
-};
-
-// ✅ NEW: Lazy-load Slider (defers ~200KB until after titles)
-const LazySlider = lazy(() => import("react-slick"));
 
 export default function Header() {
   const { onlineUsers } = useAuthStore();
   const [titleIndex, setTitleIndex] = useState(0);
   const [fade, setFade] = useState(true);
 
-  // ✅ UPDATED: Paths to .webp (generated on VPS build)
-  const slides = [
-    { image: "/slides/alone.webp", message: "💋 I'm alone in my room, talk to me now!" },
-    { image: "/slides/naked.webp", message: "🔥 I'm naked and waiting… come see!" },
-    { image: "/slides/call.webp", message: "💞 Just one minute away — call now!" },
-    { image: "/slides/dripping.webp", message: "👅 I'm dripping with desire right now!" },
-    { image: "/slides/bed.webp", message: "🛏️ My bed is cold, warm it up?" },
-    { image: "/slides/dressed.webp", message: "👠 Dressed for you only, ready anytime!" },
-    { image: "/slides/hot.webp", message: "🥵 Too hot to handle, dare you try?" },
-    { image: "/slides/gallery.webp", message: "📸 Peek my private gallery 👀" },
-    { image: "/slides/date.webp", message: "💌 I want your attention… now!" },
-    { image: "/slides/touch.webp", message: "😈 Touch me with your words!" },
-    { image: "/slides/wet.webp", message: "💦 I'm wet… and waiting!" },
-    { image: "/slides/naughty.webp", message: "🎀 Let’s get naughty tonight!" },
-    { image: "/slides/chat.webp", message: "🔥 Lonely nights need hot chats!" },
-    { image: "/slides/sweet.webp", message: "🧁 Sweet, naughty & available now!" },
-    { image: "/slides/pleasure.webp", message: "📞 1 call away from pleasure!" },
-  ];
-
   const rotatingTitles = [
-    "🔥 Kenyan Girls Are Waiting in Your Area!",
-    "💋 Chat with Nairobi Babes — Live Now!",
-    "🧡 Kisumu Queens Are Online & Hot!",
-    "🥵 Mombasa Beauties Want to Play!",
-    "💞 Eldoret & Nakuru Girls Are Available Now!",
-    "🔥 Busia Beauties Are Hot & Ready Tonight!",
-    "💋 Bungoma Babes Want It Now — Don’t Miss Out!",
-    "🥵 Kakamega Cuties Are Waiting Just for You!",
-    "🍑 Kisii Queens Are Wet, Wild & Online Now!",
-    "🌶️ Garissa Goddesses Are Craving Real Fun Tonight!",
-    "🔥 Isiolo Angels Are Online & Super Naughty!",
+    "🔥 Discover Connections in Your City Tonight!",
+    "💋 Real Vibes with Nairobi's Finest — Swipe Live!",
+    "🧡 Kisumu Sparks: Matches Waiting Just for You!",
+    "🥵 Mombasa Magic: Heat Up Your Night!",
+    "💞 Eldoret Escapes: Authentic Chats Start Here!",
+    "🔥 Busia Bonds: Genuine Flirts Online Now!",
+    "💋 Bungoma Bliss: Don't Wait, Dive In!",
+    "🥵 Kakamega Kindred: Your Next Adventure Awaits!",
+    "🍑 Kisii Kisses: Playful & Ready to Connect!",
+    "🌶️ Garissa Glow: Ignite the Night Together!",
+    "🔥 Isiolo Intrigue: Naughty & Nice, All Here!",
   ];
 
   useEffect(() => {
@@ -80,111 +33,100 @@ export default function Header() {
 
   const onlineCount = onlineUsers?.length || 0;
 
-  // 👉 react-slick settings (unchanged)
-  const carouselSettings = {
-    dots: true,
-    infinite: true,
-    speed: 500,
-    slidesToShow: 1,
-    slidesToScroll: 1,
-    autoplay: true,
-    autoplaySpeed: 3000,
-    nextArrow: <NextArrow />,
-    prevArrow: <PrevArrow />,
-    appendDots: (dots) => (
-      <div>
-        <ul className="m-0"> {dots} </ul>
-      </div>
-    ),
-    customPaging: () => (
-      <div className="w-3 h-3 bg-pink-400 rounded-full hover:bg-pink-600" />
-    ),
-  };
-
-  // ✅ NEW: Inline online count (cleaner)
+  // Inline online count (cleaner)
   const displayCount = onlineCount === 0 
     ? Math.floor(Math.random() * (80 - 40 + 1)) + 40  
     : onlineCount;
 
   return (
-    <div className="w-full min-h-screen flex-col items-center justify-center bg-gradient-to-br from-pink-200 via-rose-100 to-pink-50 px-4 py-12">
-      {/* Title Section (LCP—paints fast) */}
-      <div className="text-center mb-6 min-h-[120px] space-y-2">
-        <h1
-          className={`text-3xl md:text-5xl font-extrabold text-rose-700 transition-opacity duration-500 ${
-            fade ? "opacity-100" : "opacity-0"
-          }`}
-        >
-          {rotatingTitles[titleIndex]}
-        </h1>
+    <div 
+      className="relative w-full min-h-screen flex flex-col items-center justify-center px-4 py-12 overflow-hidden bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: "url(/alone.jpg)" }} // Assuming alone.jpg in public folder; adjust extension if needed (e.g., .png)
+    >
+      {/* Overlay Gradient for Readability (Optional: Adjust opacity for better contrast with image) */}
+      <div className="absolute inset-0 bg-gradient-to-br from-pink-200/80 via-rose-100/70 to-pink-50/60"></div>
 
-        <p className="text-md md:text-lg text-gray-700 font-medium px-4">
-          👑{" "}
-          <span className="font-bold text-rose-600 animate-bounce">Utamuhub</span>{" "}
-          brings you all kinds of Kenyan girls & men — Black, White, Slim,
-          Chubby, Petite — they're all here and ready.
-        </p>
+      {/* Animated Background Elements for Modern Flair */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-yellow-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
+        <div className="absolute top-40 left-40 w-80 h-80 bg-rose-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+      </div>
 
-        <p className="text-lg md:text-xl text-rose-800 font-semibold animate-pulse">
-          💦 If you're horny, this is the #1 hub for real Kenyan pleasure. No
-          filters. No limits.
-        </p>
+      {/* Floating Hearts for Dating Vibe */}
+      <div className="absolute inset-0 pointer-events-none">
+        {[...Array(5)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute text-2xl animate-float"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 10}s`,
+              animationDuration: `${5 + Math.random() * 5}s`,
+            }}
+          >
+            💖
+          </div>
+        ))}
+      </div>
 
-        <div className="flex items-center justify-center mt-3 gap-2">
-          <span className="relative flex h-3 w-3">
+      {/* Hero Text Section: Enhanced with Glassmorphism */}
+      <div className="relative z-10 text-center mb-12 space-y-6 max-w-3xl mx-auto backdrop-blur-sm bg-white/10 rounded-3xl p-6 border border-white/20 shadow-2xl">
+        <div className="relative">
+          {/* Dynamic Heart Icon with Pulse */}
+          <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 text-8xl opacity-30 animate-pulse-infinite">
+            💖
+          </div>
+          <h1
+            className={`text-4xl md:text-6xl font-black text-rose-700 leading-tight transition-all duration-700 ease-out ${
+              fade ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+            }`}
+          >
+            {rotatingTitles[titleIndex]}
+          </h1>
+        </div>
+
+        <div className="space-y-4 px-2">
+          <p className="text-lg md:text-xl text-gray-600 font-light italic">
+            👑 <span className="font-bold text-rose-600 not-italic animate-pulse">Utamuhub</span>: Where Kenyan hearts meet—diverse, real, and unfiltered. From city lights to cozy corners, find your spark.
+          </p>
+
+          <p className="text-xl md:text-2xl text-rose-800 font-semibold bg-gradient-to-r from-rose-500 to-pink-500 bg-clip-text text-transparent">
+            💕 Swipe, chat, connect with horny souls. No games, just genuine moments. Ready to feel the rush?
+          </p>
+        </div>
+
+        <div className="flex items-center justify-center gap-3 bg-white/90 backdrop-blur-md px-6 py-3 rounded-full shadow-xl border border-white/50">
+          <span className="relative flex h-4 w-4">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+            <span className="relative inline-flex rounded-full h-4 w-4 bg-green-500"></span>
           </span>
-          <span className="text-green-700 font-semibold">
-            {displayCount} users online now!
+          <span className="text-green-700 font-bold text-lg">
+            {displayCount} hearts beating online—join the vibe!
           </span>
         </div>
       </div>
 
-      {/* ✅ NEW: Suspense + LazySlider (defers carousel until titles load) */}
-      <Suspense fallback={<div className="w-full h-[400px] md:h-[500px] bg-pink-150 flex items-center justify-center text-gray-500 rounded-lg shadow-2xl">Loading hot previews...</div>}>
-        <div className="w-full h-full max-w-5xl mx-auto rounded-lg shadow-2xl overflow-hidden bg-pink-150">
-          <LazySlider {...carouselSettings}>
-            {slides.map((slide, index) => (
-              <div
-                key={index}
-                className="relative flex justify-center items-center h-[400px] md:h-[500px] bg-pink-150"
-              >
-                {/* ✅ NEW: <picture> for WebP + JPG fallback, loading attrs, dimensions (no CLS) */}
-                <picture>
-                  <source srcSet={slide.image} type="image/webp" />
-                  <img
-                    src={slide.image.replace('.webp', '.jpg')}  // Fallback
-                    alt={`Slide ${index + 1}`}
-                    className="block max-h-full max-w-full object-contain mx-auto"
-                    loading={index === 0 ? "eager" : "lazy"}  // First eager (LCP), rest lazy
-                    width="800"
-                    height="500"
-                  />
-                </picture>
-                <div className="absolute bottom-6 left-6 right-6 bg-rose-900 bg-opacity-70 text-white text-center p-4 rounded-lg shadow-md">
-                  <h2 className="text-lg md:text-2xl font-semibold">
-                    {slide.message}
-                  </h2>
-                </div>
-              </div>
-            ))}
-          </LazySlider>
-        </div>
-      </Suspense>
-
-      {/* CTA Buttons (unchanged) */}
-      <div className="flex flex-col sm:flex-row justify-center gap-4 mt-10 text-center">
-        <button className="btn btn-primary animate-pulse text-lg px-8 py-3 bg-pink-600 hover:bg-pink-700 text-white rounded-lg font-semibold">
-          💌 Chat with Me Now
+      {/* CTA Buttons: Modern Glassmorphism with Hover Glow */}
+      <div className="relative z-10 flex flex-col sm:flex-row justify-center gap-4 text-center">
+        <button className="group relative text-lg px-10 py-4 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 text-white rounded-2xl font-bold shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300 overflow-hidden">
+          <span className="absolute inset-0 bg-gradient-to-r from-pink-500 to-rose-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+          <span className="relative">💌 Start Swiping Now</span>
         </button>
-        <button className="btn btn-secondary animate-pulse text-lg px-8 py-3 bg-pink-500 hover:bg-pink-600 text-white rounded-lg font-semibold">
-          📸 View My Gallery
+        <button className="group text-lg px-10 py-4 bg-white/20 hover:bg-white/40 text-rose-700 border-2 border-rose-300/50 rounded-2xl font-bold shadow-lg backdrop-blur-md transition-all duration-300 hover:shadow-2xl hover:scale-105">
+          👤 Explore Matches
         </button>
-        <button className="btn btn-secondary text-lg px-8 py-3 bg-pink-400 hover:bg-pink-500 text-white rounded-lg font-semibold">
-          📞 Call Me Now
+        <button className="group relative text-lg px-10 py-4 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-2xl font-bold shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300 overflow-hidden">
+          <span className="absolute inset-0 bg-gradient-to-r from-rose-400 to-pink-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+          <span className="relative">💬 Jump into Chat</span>
         </button>
       </div>
+
+      {/* Enhanced Footer Tagline with Subtle Glow */}
+      <p className="relative z-10 mt-8 text-sm text-rose-500 font-medium opacity-80 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full inline-block shadow-lg">
+        Your next connection is one tap away. Let's make magic happen. ✨
+      </p>
     </div>
   );
 }
