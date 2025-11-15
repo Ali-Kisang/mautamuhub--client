@@ -31,7 +31,7 @@ const StepAccountType = ({ selected, setSelected }) => {
         "Increased visibility in search results",
       ],
       verified: true,
-      trialNote: "Start with free 7-day Spa trial!",
+      trialNote: "Start with free 1 month Spa trial!",
     },
     {
       type: "VVIP",
@@ -44,7 +44,7 @@ const StepAccountType = ({ selected, setSelected }) => {
         "Priority placement in category search",
       ],
       verified: true,
-      trialNote: "Start with free 7-day VVIP trial!",
+      trialNote: "Start with free 1 month VVIP trial!",
     },
     {
       type: "VIP",
@@ -58,7 +58,7 @@ const StepAccountType = ({ selected, setSelected }) => {
         "Featured placement in local search",
       ],
       verified: false,
-      trialNote: "Start with free 7-day VIP trial!",
+      trialNote: "Start with free 1 month VIP trial!",
     },
     {
       type: "Regular",
@@ -72,7 +72,7 @@ const StepAccountType = ({ selected, setSelected }) => {
         "Basic search visibility",
       ],
       verified: false,
-      trialNote: "Start with free 7-day Regular trial!",
+      trialNote: "Start with free 1 month Regular trial!",
     },
   ];
 
@@ -83,7 +83,7 @@ const StepAccountType = ({ selected, setSelected }) => {
   };
 
   const handleSelection = (type) => {
-    // ✅ For standalone trial: Override to free 7-day (backend confirms first-time)
+    // ✅ For standalone trial: Override to free 1 month (backend confirms first-time)
     setSelected({ type, amount: 0, duration: 7 }); 
     showToast(
       `✅ ${accountTypes.find((acc) => acc.type === type).trialNote} After trial, upgrade to any plan (Regular, VIP, VVIP, or Spa) anytime!`
@@ -96,7 +96,7 @@ const StepAccountType = ({ selected, setSelected }) => {
         Select Your Account Type(Chagua Aina Ya Akaunti Yako, Soma kwa maelezo hapo chini, hautozwi kwa siku 7 za kwanza)
       </h2>
       <p className="text-gray-600 mb-6 text-center">
-        Choose your starting tier—get a free 7-day trial! Upgrade later to extend with paid plans.
+        Choose your starting tier—get a free 1 month trial! Upgrade later to extend with paid plans.
       </p>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {accountTypes.map((account, index) => (

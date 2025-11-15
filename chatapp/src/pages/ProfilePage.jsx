@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Cloudinary } from "@cloudinary/url-gen";
 import { AdvancedImage } from "@cloudinary/react";
@@ -9,26 +9,89 @@ import { useAuthStore } from "../store/useAuthStore";
 import ProfileLayout from "./ProfileLayout";
 import { DotStream } from "ldrs/react";
 
+
 import { User, MapPin, Phone, Heart, DollarSign, Camera, PlusCircle, AlertTriangle, Edit2, ArrowUpRight, Clock, Crown } from "lucide-react";
 import { MdVerified } from "react-icons/md";
+import { showToast } from "../components/utils/showToast";
 
 export default function ProfilePage() {
   const { user } = useAuthStore();
   const [searchParams] = useSearchParams();
   const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [fetchLoading, setFetchLoading] = useState(true); // Renamed to distinguish from payment loading
   const [error, setError] = useState(null);
-  const [isPaying, setIsPaying] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false); // Renamed for clarity
   const [balance, setBalance] = useState(0);
   const [prorateAmount, setProrateAmount] = useState(0);
   const [newType, setNewType] = useState(""); // ✅ NEW: Track newType for prorate
+  const [showPhonePrompt, setShowPhonePrompt] = useState(false);
+  const [enteredPhone, setEnteredPhone] = useState("");
+  const [promptMessage, setPromptMessage] = useState("");
+  const [onPhoneSubmit, setOnPhoneSubmit] = useState(null);
+  const [cooldown, setCooldown] = useState(0);
+  const [errorMsg, setErrorMsg] = useState("");
   const intervalRef = useRef(null);
 
   const cld = new Cloudinary({
     cloud: { cloudName: "dcxggvejn" },
   });
 
-  // Helper functions
+  // ✅ UPDATED: Safaricom prefixes (positive list for accuracy)
+  const safaricomPrefixes = useMemo(() => new Set([
+    // 07xx
+    '0700','0701','0702','0703','0704','0705','0706','0707','0708','0709',
+    '0710','0711','0712','0713','0714','0715','0716','0717','0718','0719',
+    '0720','0721','0722','0723','0724','0725','0726','0727','0728','0729',
+    '0740','0741','0742','0743','0745','0746',
+    '0757','0758','0759',
+    '0768','0769',
+    '0790','0791','0792','0793','0794','0795','0796','0797','0798','0799',
+    // 01xx
+    '0110','0111','0112','0113','0114','0115',
+    // Add more as needed (e.g., '0748' if confirmed Safaricom)
+  ]), []);
+
+  // ✅ 2. Cooldown Countdown
+  useEffect(() => {
+    if (!cooldown) return;
+
+    const timer = setInterval(() => {
+      setCooldown((c) => c - 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  // ✅ UPDATED: Normalize phone number to standard 0xxxxxxxxx format (local, handles 07xx and 01xx)
+  const normalizePhone = useCallback((phoneStr) => {
+    if (!phoneStr) return null;
+    let phone = phoneStr.toString().replace(/\D/g, ''); // Remove non-digits
+    if (phone.startsWith('254')) {
+      phone = phone.substring(3);
+    }
+    if (phone.length === 9 && (phone.startsWith('7') || phone.startsWith('1'))) {
+      phone = '0' + phone; // To 07xx or 01xx
+    }
+    if (phone.length === 10 && (phone.startsWith('07') || phone.startsWith('01'))) {
+      return phone;
+    }
+    return null;
+  }, []);
+
+  // ✅ NEW: Get M-Pesa international format (254xxxxxxxxx)
+  const getMpesaPhone = useCallback((localPhone) => {
+    if (!localPhone || !localPhone.startsWith('0')) return null;
+    return '254' + localPhone.substring(1);
+  }, []);
+
+  // ✅ UPDATED: Validate Safaricom number (positive list check)
+  const isSafaricom = useCallback((normalizedPhone) => {
+    if (!normalizedPhone || normalizedPhone.length !== 10) return false;
+    const prefix = normalizedPhone.substring(0, 4);
+    return safaricomPrefixes.has(prefix);
+  }, [safaricomPrefixes]);
+
+  // Helper functions (early, for derived state)
   const getDaysLeft = (expiryDate) => {
     if (!expiryDate) return null;
     const now = new Date();
@@ -38,11 +101,43 @@ export default function ProfilePage() {
     return diffDays > 0 ? diffDays : 0;
   };
 
+  const getAccountBadgeClass = (type) => {
+    switch (type) {
+      case "Spa": return "bg-purple-100 text-purple-800 border-purple-300";
+      case "VVIP": return "bg-indigo-100 text-indigo-800 border-indigo-300";
+      case "VIP": return "bg-yellow-100 text-yellow-800 border-yellow-300";
+      case "Regular": return "bg-gray-100 text-gray-800 border-gray-300";
+      default: return "bg-gray-100 text-gray-800 border-gray-300";
+    }
+  };
+
+  // ✅ MOVED UP: Derived state early, before useEffects that depend on them
+  const isVerified = profile?.accountType?.type === "VVIP" || profile?.accountType?.type === "Spa";
+  const accountType = profile?.accountType?.type || "Regular";
+  const isTrial = profile?.isTrial || false;
+  const daysLeft = getDaysLeft(profile?.expiryDate);
+  const isExpiringSoon = daysLeft > 0 && daysLeft <= 3 && isTrial;
+  const isExpired = profile?.active === false;
+
+  // ✅ UPDATED: Badge text with balance next to days (always show if balance > 0)
+  const getBadgeText = () => {
+    let text = `${accountType} Account`;
+    if (isTrial) text += " (Trial)";
+    if (daysLeft !== null && daysLeft > 0) {
+      text += ` – ${daysLeft} days left`;
+      text += ` (Balance: Ksh ${balance})`;
+    } else if (balance > 0) {
+      text += ` (Balance: Ksh ${balance})`; // Show standalone if no days
+    }
+    return text;
+  };
+
   const getAvatarUrl = (avatar) => {
     if (!avatar) return "/default-avatar.png";
     return `https://res.cloudinary.com/dcxggvejn/image/upload/${avatar}`;
   };
 
+  // ✅ MOVED UP: fetchProfile before anything that depends on it
   const fetchProfile = useCallback(async () => {
     if (!user?._id) {
       setError("You are not logged in.");
@@ -64,7 +159,173 @@ export default function ProfilePage() {
     }
   }, [user?._id]);
 
-  // ✅ UPDATED: Handle prorate link from email (query params)
+  // ✅ UPDATED: Get amount for extension (match tier pricing) - moved up
+  const getAmountForType = (type, duration = 30) => {
+    const rates = {
+      Regular: { 3: 1, 7: 650, 15: 1250, 30: 1800 },
+      VIP: { 3: 450, 7: 850, 15: 1650, 30: 2800 },
+      VVIP: { 3: 500, 7: 1150, 15: 2300, 30: 3800 },
+      Spa: { 3: 800, 7: 1350, 15: 2650, 30: 4800 },
+    };
+    return rates[type]?.[duration] || 1800;
+  };
+
+  // ✅ 4. Centralized M-Pesa Error Handler
+  const handleMpesaError = (code) => {
+    let msg = "Payment failed. Please try again.";
+
+    switch (code) {
+      case "INSUFFICIENT_BALANCE":
+        msg = "You have insufficient balance to complete this transaction.";
+        break;
+      case "STK_CANCELLED":
+        msg = "You cancelled the STK prompt. Try again.";
+        break;
+      case "STK_TIMEOUT":
+        msg = "The STK push timed out. Ensure your phone is unlocked.";
+        break;
+      case "INVALID_PHONE":
+        msg = "Invalid Safaricom number. Please check and try again.";
+        break;
+      case "NETWORK_ERROR":
+        msg = "Network error. Please check your connection.";
+        break;
+      default:
+        msg = "An unknown error occurred.";
+    }
+
+    setErrorMsg(msg);
+    showToast(msg, true);
+  };
+
+  // ✅ 3. Wrap initiatePaymentWithPhone With UI Logic (merged with existing polling logic)
+  const initiatePaymentWithPhone = useCallback(async (localPhone, isProrate = false, rest = {}) => {
+    if (cooldown > 0) {
+      setErrorMsg(`Please wait ${cooldown}s before retrying.`);
+      return;
+    }
+
+    const normalizedLocal = normalizePhone(localPhone);
+    if (!normalizedLocal) {
+      setErrorMsg("Invalid phone number. Please use a valid Kenyan number.");
+      return;
+    }
+
+    const mpesaPhone = getMpesaPhone(normalizedLocal);
+    if (!mpesaPhone) {
+      setErrorMsg("Failed to format phone for M-Pesa.");
+      return;
+    }
+
+    console.log('Sending M-Pesa phone:', mpesaPhone); // ✅ DEBUG: Log for troubleshooting
+
+    setPaymentLoading(true);
+    setErrorMsg("");
+
+    try {
+      let res;
+      if (isProrate) {
+        res = await api.post("/payments/prorate-upgrade", {
+          userId: user._id,
+          phone: mpesaPhone, // ✅ Send international format
+          ...rest,
+        });
+      } else {
+        res = await api.post("/users/payments/initiate", { phone: mpesaPhone, ...rest }); // ✅ Send international format
+      }
+      console.log('Payment initiation response:', res.data); // ✅ DEBUG: Log response
+
+      if (res.data.success) {
+        showToast("STK Push sent. Check your phone.", false);
+        // Keep existing polling for balance update
+        intervalRef.current = setInterval(async () => {
+          await fetchProfile();
+        }, 3000);
+
+        setTimeout(() => {
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+            setPaymentLoading(false);
+          }
+        }, 300000);
+      } else {
+        handleMpesaError(res.data.errorCode);
+      }
+    } catch (err) {
+      console.error("Payment initiation error:", err); // ✅ DEBUG: Full error log
+      const errorCode = err.response?.data?.code || "NETWORK_ERROR";
+      handleMpesaError(errorCode);
+    }
+
+    setPaymentLoading(false);
+    setCooldown(30); // ⏳ Start 30s retry timer
+  }, [user._id, fetchProfile, normalizePhone, getMpesaPhone, cooldown]);
+
+  // ✅ UPDATED: handleProratePayment - direct with profile phone
+  const handleProratePayment = useCallback(async () => {
+    if (paymentLoading || cooldown > 0 || prorateAmount === 0 || !newType || !profile) return;
+
+    const phone = profile.personal?.phone;
+    if (!phone) {
+      setErrorMsg("No phone number associated with your profile.");
+      return;
+    }
+
+    const normalizedPhone = normalizePhone(phone);
+    if (!normalizedPhone) {
+      setErrorMsg("Invalid phone number in profile. Please update your profile.");
+      return;
+    }
+
+    if (!isSafaricom(normalizedPhone)) {
+      setErrorMsg("Profile phone is not a Safaricom number. Please use the 'Enter Safaricom Number' option.");
+      return;
+    }
+
+    const rest = { amount: prorateAmount, newType };
+    await initiatePaymentWithPhone(normalizedPhone, true, rest); // ✅ FIXED: Pass normalized for consistency
+  }, [paymentLoading, cooldown, prorateAmount, newType, profile, normalizePhone, isSafaricom, initiatePaymentWithPhone]);
+
+  // ✅ UPDATED: handlePayNow - direct with profile phone
+  const handlePayNow = useCallback(async () => {
+    if (paymentLoading || cooldown > 0 || !user?._id || !profile) return;
+
+    const phone = profile.personal?.phone;
+    if (!phone) {
+      setErrorMsg("No phone number associated with your profile.");
+      return;
+    }
+
+    const normalizedPhone = normalizePhone(phone);
+    if (!normalizedPhone) {
+      setErrorMsg("Invalid phone number in profile. Please update your profile.");
+      return;
+    }
+
+    if (!isSafaricom(normalizedPhone)) {
+      setErrorMsg("Profile phone is not a Safaricom number. Please use the 'Enter Safaricom Number' option.");
+      return;
+    }
+
+    const duration = profile?.accountType?.duration || 30;
+    const amount = getAmountForType(profile?.accountType?.type, duration);
+    const rest = { accountType: profile?.accountType?.type, duration, amount, profileData: profile };
+    await initiatePaymentWithPhone(normalizedPhone, false, rest); // ✅ FIXED: Pass normalized for consistency
+  }, [paymentLoading, cooldown, user?._id, profile, normalizePhone, isSafaricom, getAmountForType, initiatePaymentWithPhone]);
+
+  const showCustomPhonePrompt = useCallback((message, config, isProrate = false) => {
+    setPromptMessage(message);
+    setOnPhoneSubmit(() => (phone) =>
+      initiatePaymentWithPhone(phone, isProrate, config)
+    );
+    setShowPhonePrompt(true);
+    setEnteredPhone(profile?.personal?.phone || "");
+    setError(null);
+    setErrorMsg(""); // Clear on show
+  }, [profile?.personal?.phone, initiatePaymentWithPhone]);
+
+  // ✅ UPDATED: Handle prorate link from email (query params) - set states only
   useEffect(() => {
     const userId = searchParams.get('userId');
     const amount = searchParams.get('amount');
@@ -72,46 +333,22 @@ export default function ProfilePage() {
     if (userId && amount && newTypeParam && userId === user?._id) {
       setProrateAmount(parseInt(amount));
       setNewType(newTypeParam); // ✅ Set newType
-      handleProratePayment(); // Auto-initiate prorate if on this page
+      // Defer call to handleProratePayment until profile is ready
     }
   }, [searchParams, user?._id]);
 
-  // Derived state
-  const isVerified = profile?.accountType?.type === "VVIP" || profile?.accountType?.type === "Spa";
-  const accountType = profile?.accountType?.type || "Regular";
-  const isTrial = profile?.isTrial || false;
-  const daysLeft = getDaysLeft(profile?.expiryDate);
-  const isExpiringSoon = daysLeft > 0 && daysLeft <= 3 && isTrial;
-  const isExpired = profile?.active === false;
-
-  const getAccountBadgeClass = (type) => {
-    switch (type) {
-      case "Spa": return "bg-purple-100 text-purple-800 border-purple-300";
-      case "VVIP": return "bg-indigo-100 text-indigo-800 border-indigo-300";
-      case "VIP": return "bg-yellow-100 text-yellow-800 border-yellow-300";
-      case "Regular": return "bg-gray-100 text-gray-800 border-gray-300";
-      default: return "bg-gray-100 text-gray-800 border-gray-300";
+  // ✅ NEW: Trigger prorate payment once profile is loaded (now after handleProratePayment definition)
+  useEffect(() => {
+    if (prorateAmount > 0 && newType && profile && !paymentLoading && cooldown === 0) {
+      handleProratePayment();
     }
-  };
-
-  // ✅ UPDATED: Badge text with balance next to days (always show if balance > 0)
-  const getBadgeText = () => {
-    let text = `${accountType} Account`;
-    if (isTrial) text += " (Trial)";
-    if (daysLeft !== null && daysLeft > 0) {
-      text += ` – ${daysLeft} days left`;
-      text += ` (Balance: Ksh ${balance})`;
-    } else if (balance > 0) {
-      text += ` (Balance: Ksh ${balance})`; // Show standalone if no days
-    }
-    return text;
-  };
+  }, [prorateAmount, newType, profile, paymentLoading, cooldown, handleProratePayment]);
 
   useEffect(() => {
     const initFetch = async () => {
-      setLoading(true);
+      setFetchLoading(true);
       await fetchProfile();
-      setLoading(false);
+      setFetchLoading(false);
     };
 
     initFetch();
@@ -127,89 +364,15 @@ export default function ProfilePage() {
   }, []);
 
   useEffect(() => {
-    if (profile && !isExpired && isPaying) {
-      setIsPaying(false);
+    if (profile && !isExpired && paymentLoading) {
+      setPaymentLoading(false);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
       fetchProfile(); // Refetch to update balance/profile after payment
     }
-  }, [profile, isExpired, isPaying, fetchProfile]);
-
-  // ✅ UPDATED: handlePayNow for extension/renewal (send duration for backend proration, + phone & profileData)
-  const handlePayNow = async () => {
-    if (isPaying || !user?._id || !profile) return;
-
-    setIsPaying(true);
-    setError(null);
-
-    try {
-      const duration = profile?.accountType?.duration || 30; // Default 30 days for extension
-      const amount = getAmountForType(profile?.accountType?.type, duration); // Full amount for renewal
-      await api.post("/users/payments/initiate", { 
-        accountType: profile?.accountType?.type,
-        duration,
-        amount,
-        phone: profile.personal?.phone, // ✅ Add phone for STK push
-        profileData: profile // ✅ Queue existing profile for update on success
-      });
-      intervalRef.current = setInterval(async () => {
-        await fetchProfile();
-      }, 3000);
-
-      setTimeout(() => {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
-          setIsPaying(false);
-        }
-      }, 300000); // 5 minutes timeout
-    } catch (err) {
-      console.error("Payment initiation error:", err);
-      setError("Failed to initiate payment. Please try again.");
-      setIsPaying(false);
-    }
-  };
-
-  const handleProratePayment = async () => {
-    if (isPaying || prorateAmount === 0 || !newType) return;
-
-    setIsPaying(true);
-    setError(null);
-
-    try {
-      // Call prorate endpoint with dynamic newType
-      const res = await api.get(`/payments/prorate-upgrade?userId=${user._id}&amount=${prorateAmount}&newType=${newType}`);
-      if (res.data.requiresPayment) {
-        intervalRef.current = setInterval(async () => {
-          await fetchProfile();
-        }, 3000);
-        setTimeout(() => {
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
-            setIsPaying(false);
-          }
-        }, 300000);
-      }
-    } catch (err) {
-      console.error("Prorate payment error:", err);
-      setError("Failed to initiate prorate payment.");
-      setIsPaying(false);
-    }
-  };
-
-  // ✅ UPDATED: Get amount for extension (match tier pricing)
-  const getAmountForType = (type, duration = 30) => {
-    const rates = {
-      Regular: { 3: 1, 7: 650, 15: 1250, 30: 1800 },
-      VIP: { 3: 450, 7: 850, 15: 1650, 30: 2800 },
-      VVIP: { 3: 500, 7: 1150, 15: 2300, 30: 3800 },
-      Spa: { 3: 800, 7: 1350, 15: 2650, 30: 4800 },
-    };
-    return rates[type]?.[duration] || 1800;
-  };
+  }, [profile, isExpired, paymentLoading, fetchProfile]);
 
   // ✅ NEW: Render delisted overlay for expired sections
   const DelistedOverlay = ({ children }) => (
@@ -218,7 +381,7 @@ export default function ProfilePage() {
       {isExpired && (
         <div className="absolute inset-0 bg-gray-50/50 rounded-xl flex items-center justify-center pointer-events-none z-10">
           <p className="text-gray-500 text-sm flex items-center gap-1">
-            <AlertTriangle size={14} className="text-gray-400" />
+            <AlertTriangle size={14} className="text-red-400" />
             Profile delisted – Reactivate to view publicly
           </p>
         </div>
@@ -226,23 +389,57 @@ export default function ProfilePage() {
     </div>
   );
 
+  const handlePhoneSubmit = async () => {
+    const normalizedEntered = normalizePhone(enteredPhone);
+
+    if (!normalizedEntered) {
+      setErrorMsg("Invalid number format.");
+      return;
+    }
+
+    if (!isSafaricom(normalizedEntered)) {
+      setErrorMsg("Enter a valid Safaricom number.");
+      return;
+    }
+
+    await onPhoneSubmit(normalizedEntered);
+
+    setShowPhonePrompt(false);
+    setEnteredPhone("");
+    setOnPhoneSubmit(null);
+  };
+
+  // ✅ NEW: Handle phone prompt cancel
+  const handlePhoneCancel = () => {
+    setShowPhonePrompt(false);
+    setEnteredPhone("");
+    setPromptMessage("");
+    setOnPhoneSubmit(null);
+    setError(null);
+    setErrorMsg("");
+  };
+
+  // ✅ Compute for button disabled state
+  const normalizedEnteredPhone = normalizePhone(enteredPhone);
+  const isValidCustomPhone = !!normalizedEnteredPhone && isSafaricom(normalizedEnteredPhone);
+
   return (
     <ProfileLayout>
-      {loading && (
+      {fetchLoading && (
         <div className="flex flex-col items-center justify-center h-64 gap-2" role="status" aria-live="polite">
           <l-dot-stream size="60" speed="2.5" color="#ec4899"></l-dot-stream>
           <p className="text-pink-500 font-medium">Loading your profile...</p>
         </div>
       )}
 
-      {error && (
+      {error && !showPhonePrompt && (
         <div className="p-6 text-center text-red-500" role="alert">
           {error}
         </div>
       )}
 
       {/* 🔹 If no profile, show user fallback */}
-      {!loading && !error && !profile && user && (
+      {!fetchLoading && !error && !profile && user && (
         <>
           {/* Banner */}
           <div className="bg-gradient-to-r from-pink-200 to-pink-500 h-48 relative">
@@ -286,23 +483,49 @@ export default function ProfilePage() {
           {/* Conditional Expiry Banner (shows for active: false) */}
           {isExpired && (
             <div className="max-w-5xl mx-auto mt-4 p-4 bg-red-50 border border-red-200 rounded-xl text-center">
-              <p className="text-red-800 flex items-center justify-center gap-2 mb-2">
+              <p className="text-red-800 flex items-center justify-center gap-2 mb-4">
                 <AlertTriangle className="w-5 h-5" aria-hidden="true" />
                 Your {accountType} {isTrial ? 'trial' : 'subscription'} has expired. Pay now to reactivate and extend {profile?.accountType?.duration || 30} days! (Balance: Ksh {balance})
               </p>
-              <button
-                onClick={handlePayNow} 
-                disabled={isPaying}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg shadow hover:bg-red-600 disabled:bg-red-300 transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-                aria-label="Reactivate subscription"
-              >
-                {isPaying ? (
-                  <l-dot-stream size="20" speed="1.5" color="white"></l-dot-stream>
-                ) : (
-                  <DollarSign size={18} />
-                )}
-                {isPaying ? "Processing Reactivation..." : "Reactivate Now"}
-              </button>
+              <div className="flex flex-col sm:flex-row gap-2 justify-center items-center">
+                <button
+                  onClick={handlePayNow} 
+                  disabled={paymentLoading || cooldown > 0}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg shadow hover:bg-red-600 disabled:bg-red-300 transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
+                  aria-label="Reactivate with profile number"
+                >
+                  {paymentLoading ? (
+                    <l-dot-stream size="20" speed="1.5" color="white"></l-dot-stream>
+                  ) : (
+                    <DollarSign size={18} />
+                  )}
+                  {paymentLoading ? "Processing..." : cooldown > 0 ? `Retry in ${cooldown}s` : "Reactivate"}
+                </button>
+                <p className="text-sm text-gray-600 whitespace-nowrap sm:mx-2">Not your M-Pesa Number?</p>
+                <button
+                  onClick={() => {
+                    const duration = profile?.accountType?.duration || 30;
+                    const amount = getAmountForType(profile?.accountType?.type, duration);
+                    const config = {
+                      accountType: profile?.accountType?.type,
+                      duration,
+                      amount,
+                      profileData: profile,
+                    };
+                    showCustomPhonePrompt("Enter your Safaricom number to receive the STK Push.", config, false);
+                  }}
+                  disabled={paymentLoading || cooldown > 0}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-red-400 text-white rounded-lg shadow hover:bg-red-500 disabled:bg-red-300 transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
+                  aria-label="Enter Safaricom number"
+                >
+                  <Phone size={18} />
+                  {paymentLoading ? "Processing..." : cooldown > 0 ? `Retry in ${cooldown}s` : "Enter Number"}
+                </button>
+              </div>
+              {/* ✅ 5. Use Loading & Cooldown in UI - Error display */}
+              {errorMsg && (
+                <p className="text-red-500 text-sm mt-2">{errorMsg}</p>
+              )}
             </div>
           )}
 
@@ -316,9 +539,10 @@ export default function ProfilePage() {
               <div className="flex flex-col sm:flex-row gap-2 mt-2 justify-center">
                 <button
                   onClick={handlePayNow} // Extension
-                  className="px-3 py-1 text-sm bg-yellow-500 text-white rounded-md hover:bg-yellow-600"
+                  disabled={paymentLoading || cooldown > 0}
+                  className="px-3 py-1 text-sm bg-yellow-500 text-white rounded-md hover:bg-yellow-600 disabled:bg-yellow-300"
                 >
-                  Extend Trial
+                  {paymentLoading ? "Processing..." : cooldown > 0 ? `Retry in ${cooldown}s` : "Extend Trial"}
                 </button>
                 <Link
                   to="/upgrade-account"
@@ -329,6 +553,10 @@ export default function ProfilePage() {
                   Upgrade Now
                 </Link>
               </div>
+              {/* ✅ 5. Use Loading & Cooldown in UI - Error display */}
+              {errorMsg && (
+                <p className="text-red-500 text-sm mt-2">{errorMsg}</p>
+              )}
             </div>
           )}
 
@@ -553,6 +781,49 @@ export default function ProfilePage() {
             )}
           </div>
         </>
+      )}
+
+      {/* ✅ NEW: Safaricom Phone Prompt Modal */}
+      {showPhonePrompt && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Enter Safaricom Number</h3>
+              <p className="text-gray-600 mb-4">{promptMessage}</p>
+              <input
+                type="tel"
+                placeholder="07xxxxxxxx or 01xxxxxxxx"
+                value={enteredPhone}
+                onChange={(e) => setEnteredPhone(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 mb-4"
+                disabled={paymentLoading || cooldown > 0}
+              />
+              {/* ✅ 5. Inside phone prompt */}
+              {errorMsg && (
+                <p className="text-red-500 text-sm mt-2">{errorMsg}</p>
+              )}
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={handlePhoneCancel}
+                  disabled={paymentLoading}
+                  className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handlePhoneSubmit}
+                  disabled={!isValidCustomPhone || paymentLoading || cooldown > 0}
+                  className="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 disabled:bg-gray-300 transition-colors flex items-center gap-2"
+                >
+                  {paymentLoading ? (
+                    <l-dot-stream size="16" speed="1.5" color="white"></l-dot-stream>
+                  ) : null}
+                  {paymentLoading ? "Processing..." : cooldown > 0 ? `Retry in ${cooldown}s` : "Send STK Push"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </ProfileLayout>
   );

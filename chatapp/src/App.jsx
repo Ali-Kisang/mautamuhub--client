@@ -15,6 +15,7 @@ import PaymentMethods from "./constants/components/PaymentMethods";
 import ErrorPage from "./pages/ErrorPage";  // ✅ Eager: Simple error UI
 import { useEffect } from "react";
 import Loader from "./pages/Loader";
+import TawkToChat from "./pages/TawkToChat";
 
 
 // ✅ NEW: Lazy-load heavy pages (county lists, chats, profiles—likely image/data-heavy)
@@ -102,6 +103,7 @@ export default function App() {
       <AgeWarningBanner />
       <NavBar />
       <SocketManager />
+      <TawkToChat />
       <Routes>
         {/* ✅ Eager: Lightweight/static pages */}
         <Route path="/" element={<Hero />} />

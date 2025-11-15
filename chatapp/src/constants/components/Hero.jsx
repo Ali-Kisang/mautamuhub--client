@@ -7,6 +7,7 @@ import VIPListByCounty from "./VIPListByCounty";
 import RegularListByCounty from "./RegularListByCounty";
 import HomeLayout from "./HomeLayout";
 import Header from "./Header";
+import FreeTrialBanner from "../../components/FreeTrialBanner";
 
 const Hero = () => {
   const server = "https://mautamuhub.com/api";
@@ -47,6 +48,7 @@ const Hero = () => {
 
   return (
     <>
+      <FreeTrialBanner />
       <Header />
       <HomeLayout onCountySelect={setSelectedCounty}>
         {loading ? (
