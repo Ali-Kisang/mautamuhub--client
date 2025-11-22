@@ -30,6 +30,8 @@ const TawkToChat = () => {
       if (user) {
         updateUserAttributes();
       }
+      // Adjust widget position to move up (avoid overlap with bottom nav/profile)
+      adjustWidgetPosition();
     };
 
     // Dynamically load script (your exact snippet)
@@ -66,6 +68,24 @@ const TawkToChat = () => {
 
       // Timeout to stop polling
       setTimeout(() => clearInterval(pollForReady), 5000);
+    }
+
+    // Helper to adjust widget position (move up by ~70px to clear h-16 bottom nav)
+    function adjustWidgetPosition() {
+      // Poll for widget element to exist
+      const pollForWidget = setInterval(() => {
+        const widget = document.querySelector('#tawk_6918ea4d4f9eb4194d957cfb_1ja4l6gnt, .tawkto-widget');
+        if (widget) {
+          clearInterval(pollForWidget);
+          // Apply custom styles to move up
+          widget.style.bottom = '70px !important'; // Adjust as needed (h-16 ~64px + padding)
+          widget.style.right = '16px'; // Optional: fine-tune horizontal if needed
+          console.log('Tawk.to widget position adjusted');
+        }
+      }, 500);
+
+      // Timeout to stop polling
+      setTimeout(() => clearInterval(pollForWidget), 5000);
     }
 
     // Cleanup: Reset on unmount (optional, for route changes)

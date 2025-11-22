@@ -9,8 +9,20 @@ import { useAuthStore } from "../store/useAuthStore";
 import ProfileLayout from "./ProfileLayout";
 import { DotStream } from "ldrs/react";
 
-
-import { User, MapPin, Phone, Heart, DollarSign, Camera, PlusCircle, AlertTriangle, Edit2, ArrowUpRight, Clock, Crown } from "lucide-react";
+import {
+  User,
+  MapPin,
+  Phone,
+  Heart,
+  DollarSign,
+  Camera,
+  PlusCircle,
+  AlertTriangle,
+  Edit2,
+  ArrowUpRight,
+  Clock,
+  Crown,
+} from "lucide-react";
 import { MdVerified } from "react-icons/md";
 import { showToast } from "../components/utils/showToast";
 
@@ -18,12 +30,12 @@ export default function ProfilePage() {
   const { user } = useAuthStore();
   const [searchParams] = useSearchParams();
   const [profile, setProfile] = useState(null);
-  const [fetchLoading, setFetchLoading] = useState(true); // Renamed to distinguish from payment loading
+  const [fetchLoading, setFetchLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [paymentLoading, setPaymentLoading] = useState(false); // Renamed for clarity
+  const [paymentLoading, setPaymentLoading] = useState(false);
   const [balance, setBalance] = useState(0);
   const [prorateAmount, setProrateAmount] = useState(0);
-  const [newType, setNewType] = useState(""); // ✅ NEW: Track newType for prorate
+  const [newType, setNewType] = useState("");
   const [showPhonePrompt, setShowPhonePrompt] = useState(false);
   const [enteredPhone, setEnteredPhone] = useState("");
   const [promptMessage, setPromptMessage] = useState("");
@@ -36,9 +48,8 @@ export default function ProfilePage() {
     cloud: { cloudName: "dcxggvejn" },
   });
 
-  // ✅ UPDATED: Safaricom prefixes (positive list for accuracy)
+  // Safaricom prefixes (positive list)
   const safaricomPrefixes = useMemo(() => new Set([
-    // 07xx
     '0700','0701','0702','0703','0704','0705','0706','0707','0708','0709',
     '0710','0711','0712','0713','0714','0715','0716','0717','0718','0719',
     '0720','0721','0722','0723','0724','0725','0726','0727','0728','0729',
@@ -46,52 +57,38 @@ export default function ProfilePage() {
     '0757','0758','0759',
     '0768','0769',
     '0790','0791','0792','0793','0794','0795','0796','0797','0798','0799',
-    // 01xx
     '0110','0111','0112','0113','0114','0115',
-    // Add more as needed (e.g., '0748' if confirmed Safaricom)
   ]), []);
 
-  // ✅ 2. Cooldown Countdown
+  // Cooldown timer
   useEffect(() => {
     if (!cooldown) return;
-
-    const timer = setInterval(() => {
-      setCooldown((c) => c - 1);
-    }, 1000);
-
+    const timer = setInterval(() => setCooldown((c) => c - 1), 1000);
     return () => clearInterval(timer);
   }, [cooldown]);
 
-  // ✅ UPDATED: Normalize phone number to standard 0xxxxxxxxx format (local, handles 07xx and 01xx)
+  // Phone helpers
   const normalizePhone = useCallback((phoneStr) => {
     if (!phoneStr) return null;
-    let phone = phoneStr.toString().replace(/\D/g, ''); // Remove non-digits
-    if (phone.startsWith('254')) {
-      phone = phone.substring(3);
-    }
-    if (phone.length === 9 && (phone.startsWith('7') || phone.startsWith('1'))) {
-      phone = '0' + phone; // To 07xx or 01xx
-    }
-    if (phone.length === 10 && (phone.startsWith('07') || phone.startsWith('01'))) {
-      return phone;
-    }
+    let phone = phoneStr.toString().replace(/\D/g, '');
+    if (phone.startsWith('254')) phone = phone.substring(3);
+    if (phone.length === 9 && (phone.startsWith('7') || phone.startsWith('1'))) phone = '0' + phone;
+    if (phone.length === 10 && (phone.startsWith('07') || phone.startsWith('01'))) return phone;
     return null;
   }, []);
 
-  // ✅ NEW: Get M-Pesa international format (254xxxxxxxxx)
   const getMpesaPhone = useCallback((localPhone) => {
     if (!localPhone || !localPhone.startsWith('0')) return null;
     return '254' + localPhone.substring(1);
   }, []);
 
-  // ✅ UPDATED: Validate Safaricom number (positive list check)
   const isSafaricom = useCallback((normalizedPhone) => {
     if (!normalizedPhone || normalizedPhone.length !== 10) return false;
     const prefix = normalizedPhone.substring(0, 4);
     return safaricomPrefixes.has(prefix);
   }, [safaricomPrefixes]);
 
-  // Helper functions (early, for derived state)
+  // Days left
   const getDaysLeft = (expiryDate) => {
     if (!expiryDate) return null;
     const now = new Date();
@@ -111,39 +108,34 @@ export default function ProfilePage() {
     }
   };
 
-  // ✅ MOVED UP: Derived state early, before useEffects that depend on them
+  // Derived state
   const isVerified = profile?.accountType?.type === "VVIP" || profile?.accountType?.type === "Spa";
   const accountType = profile?.accountType?.type || "Regular";
   const isTrial = profile?.isTrial || false;
   const daysLeft = getDaysLeft(profile?.expiryDate);
-  const isExpiringSoon = daysLeft > 0 && daysLeft <= 3 && isTrial;
+  const isExpiringSoon = daysLeft > 0 && daysLeft <= 7 && isTrial; // ← 7-day warning for 30-day trial
   const isExpired = profile?.active === false;
 
-  // ✅ UPDATED: Badge text with balance next to days (always show if balance > 0)
   const getBadgeText = () => {
     let text = `${accountType} Account`;
     if (isTrial) text += " (Trial)";
     if (daysLeft !== null && daysLeft > 0) {
-      text += ` – ${daysLeft} days left`;
+      text += ` – ${daysLeft} day${daysLeft !== 1 ? 's' : ''} left`;
       text += ` (Balance: Ksh ${balance})`;
     } else if (balance > 0) {
-      text += ` (Balance: Ksh ${balance})`; // Show standalone if no days
+      text += ` (Balance: Ksh ${balance})`;
     }
     return text;
   };
 
-  const getAvatarUrl = (avatar) => {
-    if (!avatar) return "/default-avatar.png";
-    return `https://res.cloudinary.com/dcxggvejn/image/upload/${avatar}`;
-  };
+  const getAvatarUrl = (avatar) => (!avatar ? "/default-avatar.png" : `https://res.cloudinary.com/dcxggvejn/image/upload/${avatar}`);
 
-  // ✅ MOVED UP: fetchProfile before anything that depends on it
+  // Fetch profile
   const fetchProfile = useCallback(async () => {
     if (!user?._id) {
       setError("You are not logged in.");
       return;
     }
-
     try {
       const res = await api.get("/users/check-profile");
       if (res.data.hasProfile) {
@@ -159,7 +151,7 @@ export default function ProfilePage() {
     }
   }, [user?._id]);
 
-  // ✅ UPDATED: Get amount for extension (match tier pricing) - moved up
+  // Pricing
   const getAmountForType = (type, duration = 30) => {
     const rates = {
       Regular: { 3: 1, 7: 650, 15: 1250, 30: 1800 },
@@ -170,78 +162,43 @@ export default function ProfilePage() {
     return rates[type]?.[duration] || 1800;
   };
 
-  // ✅ 4. Centralized M-Pesa Error Handler
+  // M-Pesa error handler
   const handleMpesaError = (code) => {
-    let msg = "Payment failed. Please try again.";
-
-    switch (code) {
-      case "INSUFFICIENT_BALANCE":
-        msg = "You have insufficient balance to complete this transaction.";
-        break;
-      case "STK_CANCELLED":
-        msg = "You cancelled the STK prompt. Try again.";
-        break;
-      case "STK_TIMEOUT":
-        msg = "The STK push timed out. Ensure your phone is unlocked.";
-        break;
-      case "INVALID_PHONE":
-        msg = "Invalid Safaricom number. Please check and try again.";
-        break;
-      case "NETWORK_ERROR":
-        msg = "Network error. Please check your connection.";
-        break;
-      default:
-        msg = "An unknown error occurred.";
-    }
-
+    const messages = {
+      INSUFFICIENT_BALANCE: "You have insufficient balance.",
+      STK_CANCELLED: "You cancelled the STK prompt.",
+      STK_TIMEOUT: "The STK push timed out.",
+      INVALID_PHONE: "Invalid Safaricom number.",
+      NETWORK_ERROR: "Network error.",
+    };
+    const msg = messages[code] || "Payment failed. Please try again.";
     setErrorMsg(msg);
     showToast(msg, true);
   };
 
-  // ✅ 3. Wrap initiatePaymentWithPhone With UI Logic (merged with existing polling logic)
+  // Payment initiator
   const initiatePaymentWithPhone = useCallback(async (localPhone, isProrate = false, rest = {}) => {
     if (cooldown > 0) {
       setErrorMsg(`Please wait ${cooldown}s before retrying.`);
       return;
     }
-
     const normalizedLocal = normalizePhone(localPhone);
-    if (!normalizedLocal) {
-      setErrorMsg("Invalid phone number. Please use a valid Kenyan number.");
+    if (!normalizedLocal || !isSafaricom(normalizedLocal)) {
+      setErrorMsg("Please enter a valid Safaricom number.");
       return;
     }
-
     const mpesaPhone = getMpesaPhone(normalizedLocal);
-    if (!mpesaPhone) {
-      setErrorMsg("Failed to format phone for M-Pesa.");
-      return;
-    }
-
-    console.log('Sending M-Pesa phone:', mpesaPhone); // ✅ DEBUG: Log for troubleshooting
-
     setPaymentLoading(true);
     setErrorMsg("");
 
     try {
-      let res;
-      if (isProrate) {
-        res = await api.post("/payments/prorate-upgrade", {
-          userId: user._id,
-          phone: mpesaPhone, // ✅ Send international format
-          ...rest,
-        });
-      } else {
-        res = await api.post("/users/payments/initiate", { phone: mpesaPhone, ...rest }); // ✅ Send international format
-      }
-      console.log('Payment initiation response:', res.data); // ✅ DEBUG: Log response
+      const res = isProrate
+        ? await api.post("/payments/prorate-upgrade", { userId: user._id, phone: mpesaPhone, ...rest })
+        : await api.post("/users/payments/initiate", { phone: mpesaPhone, ...rest });
 
       if (res.data.success) {
         showToast("STK Push sent. Check your phone.", false);
-        // Keep existing polling for balance update
-        intervalRef.current = setInterval(async () => {
-          await fetchProfile();
-        }, 3000);
-
+        intervalRef.current = setInterval(fetchProfile, 3000);
         setTimeout(() => {
           if (intervalRef.current) {
             clearInterval(intervalRef.current);
@@ -253,128 +210,86 @@ export default function ProfilePage() {
         handleMpesaError(res.data.errorCode);
       }
     } catch (err) {
-      console.error("Payment initiation error:", err); // ✅ DEBUG: Full error log
-      const errorCode = err.response?.data?.code || "NETWORK_ERROR";
-      handleMpesaError(errorCode);
+      const code = err.response?.data?.code || "NETWORK_ERROR";
+      handleMpesaError(code);
     }
-
     setPaymentLoading(false);
-    setCooldown(30); // ⏳ Start 30s retry timer
-  }, [user._id, fetchProfile, normalizePhone, getMpesaPhone, cooldown]);
+    setCooldown(30);
+  }, [user._id, fetchProfile, normalizePhone, getMpesaPhone, isSafaricom, cooldown]);
 
-  // ✅ UPDATED: handleProratePayment - direct with profile phone
+  // Payment handlers
   const handleProratePayment = useCallback(async () => {
     if (paymentLoading || cooldown > 0 || prorateAmount === 0 || !newType || !profile) return;
-
     const phone = profile.personal?.phone;
-    if (!phone) {
-      setErrorMsg("No phone number associated with your profile.");
+    if (!phone || !normalizePhone(phone) || !isSafaricom(normalizePhone(phone))) {
+      setErrorMsg("Invalid or non-Safaricom phone in profile.");
       return;
     }
+    await initiatePaymentWithPhone(phone, true, { amount: prorateAmount, newType });
+  }, [paymentLoading, cooldown, prorateAmount, newType, profile, initiatePaymentWithPhone]);
 
-    const normalizedPhone = normalizePhone(phone);
-    if (!normalizedPhone) {
-      setErrorMsg("Invalid phone number in profile. Please update your profile.");
-      return;
-    }
-
-    if (!isSafaricom(normalizedPhone)) {
-      setErrorMsg("Profile phone is not a Safaricom number. Please use the 'Enter Safaricom Number' option.");
-      return;
-    }
-
-    const rest = { amount: prorateAmount, newType };
-    await initiatePaymentWithPhone(normalizedPhone, true, rest); // ✅ FIXED: Pass normalized for consistency
-  }, [paymentLoading, cooldown, prorateAmount, newType, profile, normalizePhone, isSafaricom, initiatePaymentWithPhone]);
-
-  // ✅ UPDATED: handlePayNow - direct with profile phone
   const handlePayNow = useCallback(async () => {
-    if (paymentLoading || cooldown > 0 || !user?._id || !profile) return;
-
+    if (paymentLoading || cooldown > 0 || !profile) return;
     const phone = profile.personal?.phone;
-    if (!phone) {
-      setErrorMsg("No phone number associated with your profile.");
+    if (!phone || !normalizePhone(phone) || !isSafaricom(normalizePhone(phone))) {
+      setErrorMsg("Invalid or non-Safaricom phone in profile.");
       return;
     }
-
-    const normalizedPhone = normalizePhone(phone);
-    if (!normalizedPhone) {
-      setErrorMsg("Invalid phone number in profile. Please update your profile.");
-      return;
-    }
-
-    if (!isSafaricom(normalizedPhone)) {
-      setErrorMsg("Profile phone is not a Safaricom number. Please use the 'Enter Safaricom Number' option.");
-      return;
-    }
-
     const duration = profile?.accountType?.duration || 30;
     const amount = getAmountForType(profile?.accountType?.type, duration);
-    const rest = { accountType: profile?.accountType?.type, duration, amount, profileData: profile };
-    await initiatePaymentWithPhone(normalizedPhone, false, rest); // ✅ FIXED: Pass normalized for consistency
-  }, [paymentLoading, cooldown, user?._id, profile, normalizePhone, isSafaricom, getAmountForType, initiatePaymentWithPhone]);
+    await initiatePaymentWithPhone(phone, false, {
+      accountType: profile?.accountType?.type,
+      duration,
+      amount,
+      profileData: profile,
+    });
+  }, [paymentLoading, cooldown, profile, initiatePaymentWithPhone, getAmountForType]);
 
   const showCustomPhonePrompt = useCallback((message, config, isProrate = false) => {
     setPromptMessage(message);
-    setOnPhoneSubmit(() => (phone) =>
-      initiatePaymentWithPhone(phone, isProrate, config)
-    );
+    setOnPhoneSubmit(() => (phone) => initiatePaymentWithPhone(phone, isProrate, config));
     setShowPhonePrompt(true);
     setEnteredPhone(profile?.personal?.phone || "");
-    setError(null);
-    setErrorMsg(""); // Clear on show
   }, [profile?.personal?.phone, initiatePaymentWithPhone]);
 
-  // ✅ UPDATED: Handle prorate link from email (query params) - set states only
+  // Prorate from email
   useEffect(() => {
     const userId = searchParams.get('userId');
     const amount = searchParams.get('amount');
     const newTypeParam = searchParams.get('newType');
     if (userId && amount && newTypeParam && userId === user?._id) {
       setProrateAmount(parseInt(amount));
-      setNewType(newTypeParam); // ✅ Set newType
-      // Defer call to handleProratePayment until profile is ready
+      setNewType(newTypeParam);
     }
   }, [searchParams, user?._id]);
 
-  // ✅ NEW: Trigger prorate payment once profile is loaded (now after handleProratePayment definition)
   useEffect(() => {
     if (prorateAmount > 0 && newType && profile && !paymentLoading && cooldown === 0) {
       handleProratePayment();
     }
   }, [prorateAmount, newType, profile, paymentLoading, cooldown, handleProratePayment]);
 
+  // Initial fetch
   useEffect(() => {
-    const initFetch = async () => {
+    const init = async () => {
       setFetchLoading(true);
       await fetchProfile();
       setFetchLoading(false);
     };
-
-    initFetch();
+    init();
   }, [fetchProfile]);
 
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, []);
+  // Cleanup
+  useEffect(() => () => intervalRef.current && clearInterval(intervalRef.current), []);
 
   useEffect(() => {
     if (profile && !isExpired && paymentLoading) {
       setPaymentLoading(false);
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      fetchProfile(); // Refetch to update balance/profile after payment
+      intervalRef.current && clearInterval(intervalRef.current);
+      fetchProfile();
     }
   }, [profile, isExpired, paymentLoading, fetchProfile]);
 
-  // ✅ NEW: Render delisted overlay for expired sections
   const DelistedOverlay = ({ children }) => (
     <div className="relative">
       {children}
@@ -390,177 +305,129 @@ export default function ProfilePage() {
   );
 
   const handlePhoneSubmit = async () => {
-    const normalizedEntered = normalizePhone(enteredPhone);
-
-    if (!normalizedEntered) {
-      setErrorMsg("Invalid number format.");
+    const normalized = normalizePhone(enteredPhone);
+    if (!normalized || !isSafaricom(normalized)) {
+      setErrorMsg("Please enter a valid Safaricom number.");
       return;
     }
-
-    if (!isSafaricom(normalizedEntered)) {
-      setErrorMsg("Enter a valid Safaricom number.");
-      return;
-    }
-
-    await onPhoneSubmit(normalizedEntered);
-
+    await onPhoneSubmit(normalized);
     setShowPhonePrompt(false);
     setEnteredPhone("");
     setOnPhoneSubmit(null);
   };
 
-  // ✅ NEW: Handle phone prompt cancel
   const handlePhoneCancel = () => {
     setShowPhonePrompt(false);
     setEnteredPhone("");
     setPromptMessage("");
     setOnPhoneSubmit(null);
-    setError(null);
     setErrorMsg("");
   };
 
-  // ✅ Compute for button disabled state
   const normalizedEnteredPhone = normalizePhone(enteredPhone);
   const isValidCustomPhone = !!normalizedEnteredPhone && isSafaricom(normalizedEnteredPhone);
 
   return (
     <ProfileLayout>
       {fetchLoading && (
-        <div className="flex flex-col items-center justify-center h-64 gap-2" role="status" aria-live="polite">
+        <div className="flex flex-col items-center justify-center h-64 gap-2">
           <l-dot-stream size="60" speed="2.5" color="#ec4899"></l-dot-stream>
           <p className="text-pink-500 font-medium">Loading your profile...</p>
         </div>
       )}
 
-      {error && !showPhonePrompt && (
-        <div className="p-6 text-center text-red-500" role="alert">
-          {error}
-        </div>
-      )}
+      {error && !showPhonePrompt && <div className="p-6 text-center text-red-500">{error}</div>}
 
-      {/* 🔹 If no profile, show user fallback */}
+      {/* No profile yet */}
       {!fetchLoading && !error && !profile && user && (
         <>
-          {/* Banner */}
           <div className="bg-gradient-to-r from-pink-200 to-pink-500 h-48 relative">
             <div className="absolute -bottom-20 left-1/2 transform -translate-x-1/2 flex flex-col items-center">
-              <img
-                src={getAvatarUrl(user.avatar)}
-                alt={`${user.username}'s avatar`}
-                className="w-36 h-36 rounded-full border-4 border-pink-500 shadow-lg object-cover"
-                loading="lazy"
-              />
-              <h1 className="mt-6 text-2xl md:text-3xl font-bold text-gray-800 text-center">
-                {user.username}
-              </h1>
-              <p className="mt-1 text-gray-600 text-center">{user.email}</p>
+              <img src={getAvatarUrl(user.avatar)} alt={`${user.username}'s avatar`} className="w-36 h-36 rounded-full border-4 border-pink-500 shadow-lg object-cover" />
+              <h1 className="mt-6 text-2xl md:text-3xl font-bold text-gray-800">{user.username}</h1>
+              <p className="mt-1 text-gray-600">{user.email}</p>
             </div>
           </div>
 
-          {/* Content */}
           <div className="max-w-5xl mx-auto mt-28 space-y-6 p-4 text-center">
             <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
               <p className="text-gray-600 mb-4 flex items-center justify-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-yellow-500" aria-hidden="true" />
-                You are not listed yet. Create one to unlock full features. This account is currently limited to chatting only.
+                <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                You are not listed yet. Activate your free 30-day trial to unlock full features!
               </p>
               <Link
                 to="/create-account"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-pink-500 text-white rounded-lg shadow hover:bg-pink-600 transition-colors focus:outline-none focus:ring-2 focus:ring-pink-300"
-                aria-label="Activate your account to get listed"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-pink-600 text-white rounded-lg shadow hover:bg-pink-700 font-medium transition-colors"
               >
-                <PlusCircle size={18} />
-                Activate Your Free Trial Account
+                <PlusCircle size={20} />
+                Activate Your Free 30-Day Trial
               </Link>
             </div>
           </div>
         </>
       )}
 
-      {/* 🔹 If profile exists (active or expired), show full page with conditional banners */}
+      {/* Profile exists */}
       {profile && (
         <>
-          {/* Conditional Expiry Banner (shows for active: false) */}
+          {/* Expired banner */}
           {isExpired && (
             <div className="max-w-5xl mx-auto mt-4 p-4 bg-red-50 border border-red-200 rounded-xl text-center">
               <p className="text-red-800 flex items-center justify-center gap-2 mb-4">
-                <AlertTriangle className="w-5 h-5" aria-hidden="true" />
-                Your {accountType} {isTrial ? 'trial' : 'subscription'} has expired. Pay now to reactivate and extend {profile?.accountType?.duration || 30} days! (Balance: Ksh {balance})
+                <AlertTriangle className="w-5 h-5" />
+                Your {accountType} {isTrial ? "trial" : "subscription"} has expired. Reactivate now to regain visibility!
               </p>
-              <div className="flex flex-col sm:flex-row gap-2 justify-center items-center">
+              <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
                 <button
-                  onClick={handlePayNow} 
+                  onClick={handlePayNow}
                   disabled={paymentLoading || cooldown > 0}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg shadow hover:bg-red-600 disabled:bg-red-300 transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-                  aria-label="Reactivate with profile number"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg shadow hover:bg-red-700 disabled:bg-red-400 transition-colors"
                 >
-                  {paymentLoading ? (
-                    <l-dot-stream size="20" speed="1.5" color="white"></l-dot-stream>
-                  ) : (
-                    <DollarSign size={18} />
-                  )}
-                  {paymentLoading ? "Processing..." : cooldown > 0 ? `Retry in ${cooldown}s` : "Reactivate"}
+                  {paymentLoading ? <l-dot-stream size="20" speed="1.5" color="white"></l-dot-stream> : <DollarSign size={20} />}
+                  {paymentLoading ? "Processing..." : cooldown > 0 ? `Retry in ${cooldown}s` : "Reactivate Now"}
                 </button>
-                <p className="text-sm text-gray-600 whitespace-nowrap sm:mx-2">Not your M-Pesa Number?</p>
+
                 <button
                   onClick={() => {
                     const duration = profile?.accountType?.duration || 30;
                     const amount = getAmountForType(profile?.accountType?.type, duration);
-                    const config = {
+                    showCustomPhonePrompt("Enter your Safaricom number to receive the STK Push.", {
                       accountType: profile?.accountType?.type,
                       duration,
                       amount,
                       profileData: profile,
-                    };
-                    showCustomPhonePrompt("Enter your Safaricom number to receive the STK Push.", config, false);
+                    }, false);
                   }}
                   disabled={paymentLoading || cooldown > 0}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-red-400 text-white rounded-lg shadow hover:bg-red-500 disabled:bg-red-300 transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-                  aria-label="Enter Safaricom number"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-red-500 text-white rounded-lg shadow hover:bg-red-600 disabled:bg-red-400 transition-colors"
                 >
-                  <Phone size={18} />
-                  {paymentLoading ? "Processing..." : cooldown > 0 ? `Retry in ${cooldown}s` : "Enter Number"}
+                  <Phone size={20} />
+                  Use Another Number
                 </button>
               </div>
-              {/* ✅ 5. Use Loading & Cooldown in UI - Error display */}
-              {errorMsg && (
-                <p className="text-red-500 text-sm mt-2">{errorMsg}</p>
-              )}
+              {errorMsg && <p className="text-red-500 text-sm mt-3">{errorMsg}</p>}
             </div>
           )}
 
-          {/* Conditional Expiring Soon Banner (for active trials only) */}
+          {/* Trial expiring soon banner */}
           {!isExpired && isExpiringSoon && (
-            <div className="max-w-5xl mx-auto mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+            <div className="max-w-5xl mx-auto mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-center">
               <p className="text-yellow-800 flex items-center justify-center gap-2">
-                <Clock className="w-5 h-5" aria-hidden="true" />
-                Your trial ends in {daysLeft} day{daysLeft !== 1 ? 's' : ''} (Balance: Ksh {balance}). Extend or upgrade to keep your {accountType} features!
+                <Clock className="w-5 h-5" />
+                Your 30-day free trial ends in {daysLeft} day{daysLeft !== 1 ? "s" : ""}! Upgrade now to stay listed.
               </p>
-              <div className="flex flex-col sm:flex-row gap-2 mt-2 justify-center">
-                <button
-                  onClick={handlePayNow} // Extension
-                  disabled={paymentLoading || cooldown > 0}
-                  className="px-3 py-1 text-sm bg-yellow-500 text-white rounded-md hover:bg-yellow-600 disabled:bg-yellow-300"
-                >
-                  {paymentLoading ? "Processing..." : cooldown > 0 ? `Retry in ${cooldown}s` : "Extend Trial"}
-                </button>
+              <div className="flex gap-4 mt-4 justify-center">
                 <Link
                   to="/upgrade-account"
-                  className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-yellow-600 text-white rounded-md hover:bg-yellow-700"
-                  aria-label="Upgrade before expiry"
+                  className="px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-medium transition-colors"
                 >
-                  <ArrowUpRight size={14} />
+                  <Crown className="inline mr-2" size={18} />
                   Upgrade Now
                 </Link>
               </div>
-              {/* ✅ 5. Use Loading & Cooldown in UI - Error display */}
-              {errorMsg && (
-                <p className="text-red-500 text-sm mt-2">{errorMsg}</p>
-              )}
             </div>
           )}
 
-          {/* Full Profile Content (always render if profile exists) */}
           {/* Banner */}
           <div className="bg-gradient-to-r from-pink-200 to-pink-500 h-48 relative">
             <div className="absolute -bottom-20 left-1/2 transform -translate-x-1/2 flex flex-col items-center">
@@ -568,24 +435,17 @@ export default function ProfilePage() {
                 {profile.photos && profile.photos.length > 0 ? (
                   <>
                     <AdvancedImage
-                      cldImg={cld
-                        .image(profile.photos[0])
-                        .resize(auto().gravity(autoGravity()))}
+                      cldImg={cld.image(profile.photos[0]).resize(auto().gravity(autoGravity()))}
                       className="w-36 h-36 rounded-full border-4 border-pink-500 shadow-lg object-cover hover:scale-105 transition-transform duration-200"
                       alt={`${profile.personal?.username}'s profile photo`}
                     />
-                    {isVerified && (
-                      <div className="absolute top-3 left-3">
-                        <MdVerified className="text-pink-500 text-xl" />
-                      </div>
-                    )}
+                    {isVerified && <MdVerified className="absolute top-3 left-3 text-pink-500 text-xl" />}
                   </>
                 ) : (
-                  <div className="w-36 h-36 rounded-full border-4 border-pink-500 shadow-lg bg-gray-200 flex items-center justify-center">
+                  <div className="w-36 h-36 rounded-full border-4 border-pink-500 shadow-lg bg-gray-200 flex items-center justify-center text-gray-500">
                     No Photo
                   </div>
                 )}
-                {/* ✅ NEW: Delisted badge on banner if expired */}
                 {isExpired && (
                   <div className="absolute top-3 right-3 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1">
                     <AlertTriangle size={10} />
@@ -600,36 +460,34 @@ export default function ProfilePage() {
                 {profile.personal?.age} yrs · {profile.personal?.gender}
               </p>
               <p className="text-gray-500 flex items-center justify-center gap-1 text-center">
-                <MapPin size={16} aria-hidden="true" /> {profile.location?.county},{" "}
-                {profile.location?.constituency}
+                <MapPin size={16} /> {profile.location?.county}, {profile.location?.constituency}
               </p>
             </div>
           </div>
 
-          {/* Profile content */}
+          {/* Main content */}
           <div className="max-w-5xl mx-auto mt-28 space-y-6 p-4">
-            {/* Edit CTA – disable if expired */}
+            {/* Edit button */}
             <div className="text-right">
               <Link
                 to="/edit-profile"
-                className={`inline-flex items-center gap-1 px-3 py-1 text-sm rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-pink-300 ${
-                  isExpired 
-                    ? 'bg-gray-100 text-gray-500 cursor-not-allowed' 
-                    : 'bg-pink-100 text-pink-700 hover:bg-pink-200'
+                className={`inline-flex items-center gap-1 px-3 py-1 text-sm rounded-md transition-colors ${
+                  isExpired
+                    ? "bg-gray-100 text-gray-500 cursor-not-allowed"
+                    : "bg-pink-100 text-pink-700 hover:bg-pink-200"
                 }`}
-                aria-label="Edit your profile"
-                onClick={(e) => isExpired && e.preventDefault()}  // Prevent if expired
+                onClick={(e) => isExpired && e.preventDefault()}
               >
                 <Edit2 size={14} />
-                {isExpired ? 'Reactivate to Edit' : 'Edit Profile'}
+                {isExpired ? "Reactivate to Edit" : "Edit Profile"}
               </Link>
             </div>
 
-            {/* Account Type Badge */}
+            {/* Account Type */}
             <DelistedOverlay>
               <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
                 <h2 className="text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
-                  <Crown className="text-pink-500" size={25} aria-hidden="true" /> Account Type
+                  <Crown className="text-pink-500" size={25} /> Account Type
                 </h2>
                 <div className="flex items-center justify-center gap-4">
                   <span className={`px-4 py-2 rounded-full border font-semibold flex items-center gap-2 ${getAccountBadgeClass(accountType)}`}>
@@ -637,35 +495,40 @@ export default function ProfilePage() {
                     {getBadgeText()}
                   </span>
                 </div>
-                {!isVerified && !isTrial && (
-                  <div className="mt-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg">
-                    <p className="text-yellow-800 flex items-center gap-2">
-                      <AlertTriangle className="w-5 h-5" aria-hidden="true" />
-                      You're not verified. Upgrade to VVIP or Spa for better visibility and priority features!
+
+                {/* 30-day trial box */}
+                {isTrial && (
+                  <div className="mt-6 p-5 bg-pink-50 border-l-4 border-pink-400 rounded-r-lg text-center">
+                    <p className="text-pink-800 font-medium">
+                      <Clock className="inline mr-2" size={18} />
+                      You're on a <strong>30-day free trial</strong>!
+                      <br />
+                      {daysLeft > 0
+                        ? `${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining`
+                        : "This is your last day!"}
                     </p>
                     <Link
                       to="/upgrade-account"
-                      className="inline-flex items-center gap-1 mt-2 px-3 py-1 text-sm bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-300"
-                      aria-label="Upgrade your account"
+                      className="inline-flex items-center gap-2 mt-4 px-6 py-3 bg-pink-600 text-white rounded-lg hover:bg-pink-700 font-medium"
                     >
-                      <ArrowUpRight size={14} />
+                      <Crown size={18} />
                       Upgrade Now
                     </Link>
                   </div>
                 )}
-                {isTrial && (
-                  <div className="mt-4 p-4 bg-pink-50 border-l-4 border-pink-400 rounded-r-lg">
-                    <p className="text-pink-800 flex items-center gap-2">
-                      <Clock className="w-5 h-5" aria-hidden="true" />
-                      Enjoying your free trial? Upgrade anytime to continue without interruptions.
+
+                {/* Not verified */}
+                {!isVerified && !isTrial && (
+                  <div className="mt-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg">
+                    <p className="text-yellow-800 flex items-center gap-2">
+                      <AlertTriangle className="w-5 h-5" />
+                      Upgrade to VVIP or Spa for verified badge and priority listing!
                     </p>
                     <Link
                       to="/upgrade-account"
-                      className="inline-flex items-center gap-1 mt-2 px-3 py-1 text-sm bg-pink-500 text-white rounded-md hover:bg-pink-600 transition-colors focus:outline-none focus:ring-2 focus:ring-pink-300"
-                      aria-label="Upgrade from trial"
+                      className="inline-flex items-center gap-1 mt-2 px-3 py-1 text-sm bg-yellow-500 text-white rounded-md hover:bg-yellow-600"
                     >
-                      <ArrowUpRight size={14} />
-                      Upgrade to Full
+                      <ArrowUpRight size={14} /> Upgrade Now
                     </Link>
                   </div>
                 )}
@@ -676,22 +539,20 @@ export default function ProfilePage() {
             <DelistedOverlay>
               <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
                 <h2 className="text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
-                  <User className="text-pink-500" size={25} aria-hidden="true" /> Personal Info
+                  <User className="text-pink-500" size={25} /> Personal Info
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-700">
                   <p>
                     <span className="font-medium flex items-center gap-1">
-                      <Phone size={16} aria-hidden="true" /> Phone:
+                      <Phone size={16} /> Phone:
                     </span>{" "}
-                    {profile.personal?.phone}
+                    {profile.personal?.phone || "Not set"}
                   </p>
                   <p>
-                    <span className="font-medium">Ethnicity:</span>{" "}
-                    {profile.personal?.ethnicity}
+                    <span className="font-medium">Ethnicity:</span> {profile.personal?.ethnicity || "Not set"}
                   </p>
                   <p>
-                    <span className="font-medium">Orientation:</span>{" "}
-                    {profile.personal?.orientation}
+                    <span className="font-medium">Orientation:</span> {profile.personal?.orientation || "Not set"}
                   </p>
                 </div>
               </div>
@@ -701,14 +562,14 @@ export default function ProfilePage() {
             <DelistedOverlay>
               <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
                 <h2 className="text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
-                  <DollarSign className="text-pink-500" size={25} aria-hidden="true" /> Rates
+                  <DollarSign className="text-pink-500" size={25} /> Rates
                 </h2>
                 <div className="flex flex-wrap gap-3">
                   <span className="bg-pink-100 text-pink-500 px-4 py-2 rounded-lg font-medium">
-                    Incall: Ksh {profile.additional?.incallRate}
+                    Incall: Ksh {profile.additional?.incallRate || 0}
                   </span>
                   <span className="bg-pink-100 text-pink-500 px-4 py-2 rounded-lg font-medium">
-                    Outcall: Ksh {profile.additional?.outcallRate}
+                    Outcall: Ksh {profile.additional?.outcallRate || 0}
                   </span>
                 </div>
               </div>
@@ -719,14 +580,11 @@ export default function ProfilePage() {
               <DelistedOverlay>
                 <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
                   <h2 className="text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
-                    <Heart size={25} className="text-pink-500" aria-hidden="true" /> Services
+                    <Heart size={25} className="text-pink-500" /> Services
                   </h2>
                   <div className="flex flex-wrap gap-2">
                     {profile.services.selected.map((service, i) => (
-                      <span
-                        key={i}
-                        className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm hover:bg-gray-200 transition-colors"
-                      >
+                      <span key={i} className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm hover:bg-gray-200 transition-colors">
                         {service}
                       </span>
                     ))}
@@ -739,7 +597,7 @@ export default function ProfilePage() {
             <DelistedOverlay>
               <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
                 <h2 className="text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
-                  <User size={25} className="text-pink-500" aria-hidden="true" /> About Me
+                  <User size={25} className="text-pink-500" /> About Me
                 </h2>
                 <p className="text-gray-700 leading-relaxed">
                   {profile.additional?.description || "No description available."}
@@ -752,18 +610,13 @@ export default function ProfilePage() {
               <DelistedOverlay>
                 <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
                   <h2 className="text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
-                    <Camera size={25} className="text-pink-500" aria-hidden="true" /> Photos
+                    <Camera size={25} className="text-pink-500" /> Photos
                   </h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                     {profile.photos.map((publicId, i) => (
-                      <div
-                        key={i}
-                        className="relative overflow-hidden rounded-lg shadow aspect-square bg-gray-100"
-                      >
+                      <div key={i} className="relative overflow-hidden rounded-lg shadow aspect-square bg-gray-100">
                         <AdvancedImage
-                          cldImg={cld
-                            .image(publicId)
-                            .resize(auto().gravity(autoGravity()))}
+                          cldImg={cld.image(publicId).resize(auto().gravity(autoGravity()))}
                           className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
                           alt={`${profile.personal?.username}'s photo ${i + 1}`}
                         />
@@ -783,44 +636,37 @@ export default function ProfilePage() {
         </>
       )}
 
-      {/* ✅ NEW: Safaricom Phone Prompt Modal */}
+      {/* Phone prompt modal */}
       {showPhonePrompt && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Enter Safaricom Number</h3>
-              <p className="text-gray-600 mb-4">{promptMessage}</p>
-              <input
-                type="tel"
-                placeholder="07xxxxxxxx or 01xxxxxxxx"
-                value={enteredPhone}
-                onChange={(e) => setEnteredPhone(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 mb-4"
-                disabled={paymentLoading || cooldown > 0}
-              />
-              {/* ✅ 5. Inside phone prompt */}
-              {errorMsg && (
-                <p className="text-red-500 text-sm mt-2">{errorMsg}</p>
-              )}
-              <div className="flex gap-2 justify-end">
-                <button
-                  onClick={handlePhoneCancel}
-                  disabled={paymentLoading}
-                  className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handlePhoneSubmit}
-                  disabled={!isValidCustomPhone || paymentLoading || cooldown > 0}
-                  className="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 disabled:bg-gray-300 transition-colors flex items-center gap-2"
-                >
-                  {paymentLoading ? (
-                    <l-dot-stream size="16" speed="1.5" color="white"></l-dot-stream>
-                  ) : null}
-                  {paymentLoading ? "Processing..." : cooldown > 0 ? `Retry in ${cooldown}s` : "Send STK Push"}
-                </button>
-              </div>
+          <div className="bg-white rounded-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold mb-4">Enter Safaricom Number</h3>
+            <p className="text-gray-600 mb-4">{promptMessage}</p>
+            <input
+              type="tel"
+              placeholder="07xxxxxxxx or 01xxxxxxxx"
+              value={enteredPhone}
+              onChange={(e) => setEnteredPhone(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 mb-4"
+              disabled={paymentLoading || cooldown > 0}
+            />
+            {errorMsg && <p className="text-red-500 text-sm mb-3">{errorMsg}</p>}
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handlePhoneCancel}
+                disabled={paymentLoading}
+                className="px-5 py-2 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePhoneSubmit}
+                disabled={!isValidCustomPhone || paymentLoading || cooldown > 0}
+                className="px-5 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 disabled:bg-gray-300 transition-colors flex items-center gap-2"
+              >
+                {paymentLoading ? <l-dot-stream size="16" speed="1.5" color="white"></l-dot-stream> : null}
+                {paymentLoading ? "Processing..." : cooldown > 0 ? `Retry in ${cooldown}s` : "Send STK Push"}
+              </button>
             </div>
           </div>
         </div>

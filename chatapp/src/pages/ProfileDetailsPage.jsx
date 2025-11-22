@@ -189,79 +189,121 @@ export default function ProfileDetailsPage() {
       )}
 
       {/* Modal for fullscreen image */}
+            {/* FINAL MODAL — PERFECT IMAGES, PINK ARROWS, NO DOUBLE ARROWS */}
       {modalOpen && (
-        <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4">
-          {/* Close button */}
-          <button
-            onClick={() => setModalOpen(false)}
-            className="absolute top-6 right-6 text-white hover:text-pink-300 transition-colors"
-          >
-            <X className="w-8 h-8" />
-          </button>
-
-          <div className="relative w-full max-w-6xl h-[90vh] flex flex-col items-center justify-center">
-            {/* Counter - only show if more than one image */}
+        <div className="fixed inset-0 bg-black z-[9999] flex flex-col items-center justify-center p-4 md:p-8">
+          {/* Top Bar */}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50">
             {profile.photos && profile.photos.length > 1 && (
-              <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-black/50 text-white px-4 py-2 rounded-full text-sm font-medium z-10">
-                {(() => {
-                  const idx = profile.photos.indexOf(selectedImage);
-                  return idx >= 0
-                    ? `${idx + 1}/${profile.photos.length}`
-                    : `1/${profile.photos.length}`;
-                })()}
+              <div className="bg-pink-600/90 backdrop-blur-md text-white px-6 py-3 rounded-full text-lg font-bold shadow-2xl border border-pink-400">
+                {(profile.photos.indexOf(selectedImage) + 1)} / {profile.photos.length}
               </div>
             )}
-
-            {/* Image Display */}
-            <div className="w-full h-full flex items-center justify-center">
-              {profile.photos && profile.photos.length > 1 ? (
-                <Slider {...modalCarouselSettings}>
-                  {profile.photos.map((publicId, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-center h-full"
-                    >
-                      <Image
-                        cloudName="dcxggvejn"
-                        publicId={publicId}
-                        alt={`Photo ${index + 1}`}
-                        className="max-h-full max-w-full object-contain mx-auto"
-                      >
-                        <Transformation width="1200" height="800" crop="fit" />
-                        <Transformation
-                          overlay={`text:Arial_20_bold:${profile.personal?.username}@Mautamuhub`}
-                          gravity="south_east"
-                          x="20"
-                          y="20"
-                          opacity="60"
-                          color="white"
-                        />
-                      </Image>
-                    </div>
-                  ))}
-                </Slider>
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <Image
-                    cloudName="dcxggvejn"
-                    publicId={selectedImage}
-                    alt="Photo"
-                    className="max-h-full max-w-full object-contain mx-auto"
-                  >
-                    <Transformation width="1200" height="800" crop="fit" />
-                    <Transformation
-                      overlay={`text:Arial_20_bold:${profile.personal?.username}@Mautamuhub`}
-                      gravity="south_east"
-                      x="20"
-                      y="20"
-                      opacity="60"
-                      color="white"
-                    />
-                  </Image>
-                </div>
-              )}
-            </div>
           </div>
+
+          {/* Close Button */}
+          <button
+            onClick={() => setModalOpen(false)}
+            className="absolute top-4 right-4 md:top-6 md:right-6 bg-pink-600/90 hover:bg-pink-700 text-white p-4 rounded-full transition-all z-50 shadow-2xl hover:scale-110 border border-pink-400"
+          >
+            <X className="w-9 h-9" />
+          </button>
+
+          {/* Main Image — FULL BEAUTY & CONSISTENT */}
+          <div className="relative w-full h-full max-w-6xl max-h-[92vh] flex items-center justify-center">
+            {profile.photos && profile.photos.length > 1 ? (
+              <Slider
+                {...modalCarouselSettings}
+                arrows={true}
+                prevArrow={
+                  <div className="slick-arrow !left-4 md:!left-8 !w-14 !h-14 !bg-pink-600/80 hover:!bg-pink-700 !rounded-full !flex !items-center !justify-center !shadow-2xl !border-2 !border-pink-400">
+                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </div>
+                }
+                nextArrow={
+                  <div className="slick-arrow !right-4 md:!right-8 !w-14 !h-14 !bg-pink-600/80 hover:!bg-pink-700 !rounded-full !flex !items-center !justify-center !shadow-2xl !border-2 !border-pink-400">
+                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                }
+              >
+                {profile.photos.map((publicId, index) => (
+                  <div key={index} className="flex items-center justify-center h-full px-4">
+                    <Image
+                      cloudName="dcxggvejn"
+                      publicId={publicId}
+                      className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+                      alt={`Photo ${index + 1}`}
+                    >
+                      <Transformation
+                        width="1400"
+                        height="1800"
+                        crop="limit"
+                        quality="auto:best"
+                        fetchFormat="auto"
+                      />
+                      <Transformation
+                        overlay={{
+                          fontFamily: "Arial",
+                          fontSize: 32,
+                          fontWeight: "bold",
+                          text: `${profile.personal?.username}@Mautamuhub`
+                        }}
+                        gravity="south_east"
+                        x="40"
+                        y="40"
+                        opacity="80"
+                        color="white"
+                      />
+                    </Image>
+                  </div>
+                ))}
+              </Slider>
+            ) : (
+              <div className="flex items-center justify-center h-full px-4">
+                <Image
+                  cloudName="dcxggvejn"
+                  publicId={selectedImage}
+                  className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+                  alt="Fullscreen"
+                >
+                  <Transformation
+                    width="1400"
+                    height="1800"
+                    crop="limit"
+                    quality="auto:best"
+                    fetchFormat="auto"
+                  />
+                  <Transformation
+                    overlay={{
+                      fontFamily: "Arial",
+                      fontSize: 32,
+                      fontWeight: "bold",
+                      text: `${profile.personal?.username}@Mautamuhub`
+                    }}
+                    gravity="south_east"
+                    x="40"
+                    y="40"
+                    opacity="80"
+                    color="white"
+                  />
+                </Image>
+              </div>
+            )}
+          </div>
+
+          {/* REMOVE ALL DEFAULT ARROWS & STYLING */}
+          <style jsx global>{`
+            .slick-prev:before, .slick-next:before { display: none !important; }
+            .slick-prev, .slick-next { 
+              z-index: 40 !important;
+              width: 56px !important;
+              height: 56px !important;
+            }
+          `}</style>
         </div>
       )}
 
@@ -415,7 +457,10 @@ export default function ProfileDetailsPage() {
       )}
 
       {/* Services */}
-      {profile.services?.selected?.length > 0 || profile.services?.custom && (
+            {/* Services */}
+      {((profile.services?.selected && profile.services.selected.length > 0) || 
+        (Array.isArray(profile.services) && profile.services.length > 0) || 
+        profile.services?.custom) && (
         <motion.div
           className="bg-white rounded-2xl shadow-lg p-6 mb-10 hover:shadow-2xl transition-all duration-300"
           whileHover={{ y: -2 }}
@@ -424,18 +469,21 @@ export default function ProfileDetailsPage() {
             <CheckCircle className="w-6 h-6 text-pink-500" />
             Services Offered
           </h2>
-          {profile.services?.selected?.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-4">
-              {profile.services.selected.map((service, idx) => (
-                <span
-                  key={idx}
-                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-pink-100 text-pink-800 border border-pink-200"
-                >
-                  {service}
-                </span>
-              ))}
-            </div>
-          )}
+
+          {/* This part now works with BOTH old format (direct array) and new format ({selected: [...]}) */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            {(profile.services?.selected || 
+              (Array.isArray(profile.services) ? profile.services : [])
+            ).map((service, idx) => (
+              <span
+                key={idx}
+                className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-pink-100 text-pink-800 border border-pink-200"
+              >
+                {service}
+              </span>
+            ))}
+          </div>
+
           {profile.services?.custom && (
             <p className="text-gray-700 leading-relaxed text-lg">
               {profile.services.custom}

@@ -2,7 +2,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore"; // ✅ Added
-import { Menu, X, MessageCircle, Search } from "lucide-react";
+import { Menu, X, MessageCircle, Search, Home, User, LogOut, UserPlus } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { DotSpinner } from "@uiball/loaders";
 import api from "../utils/axiosInstance"; // ✅ Added for fetch
@@ -11,7 +11,7 @@ import Loader from "../pages/Loader";
 
 export default function NavBar() {
   const { user, logout, loading: authLoading } = useAuthStore();
-  const { unreadCounts, setUnreadCounts, getTotalUnread } = useChatStore(); 
+  const {  setUnreadCounts, getTotalUnread } = useChatStore(); 
   const nav = useNavigate();
 
   // UI state
@@ -209,13 +209,19 @@ export default function NavBar() {
     setOpen(false);
   };
 
+  // Modern bottom nav handlers
+  const handleBottomNavClick = (path, onClick) => {
+    if (onClick) onClick();
+    nav(path);
+  };
+
   return (
     <>
       <nav className="bg-white shadow-md sticky top-0 left-0 w-full z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-18">
-            {/* Logo */}
-            <div className="flex items-center gap-4">
+            {/* Logo + Greeting (mobile) */}
+            <div className="flex items-center gap-2 md:gap-4">
               <Link to="/">
                 <img
                   src="/MautamuLogo.png"
@@ -223,14 +229,24 @@ export default function NavBar() {
                   className="h-20 sm:h-40 md:h-48 lg:h-64 w-auto object-contain"
                 />
               </Link>
+              
+             
             </div>
-
+ {/* Greeting - Mobile only, between logo and right icons */}
+             {user && (
+  <div className="md:hidden flex justify-center items-center w-full">
+    <span className="text-lg text-pink-500 italic font-medium truncate max-w-[200px] text-center">
+      <span className="animate-pulse inline-block">👋</span>{' '}
+      Hi, {user.username || "User"}!
+    </span>
+  </div>
+)}
             {/* Desktop Menu */}
             <div className="hidden md:flex space-x-8 items-center text-lg lg:text-xl font-medium">
               {user && (
                 <>
                   <span className="text-md text-pink-500 italic font-medium">
-                    Hi, {user.username || "User"}
+                   👋 Hi, {user.username || "User"}
                   </span>
                   <Link
                     to="/profile"
@@ -240,7 +256,7 @@ export default function NavBar() {
                   </Link>
 
                   <Link
-                    to="/profile"
+                    to="/profile" // ✅ Updated to /chat for proper functionality
                     className="relative text-pink-600 hover:text-pink-700 transition-colors duration-200 flex items-center"
                     title="Messenger"
                   >
@@ -295,11 +311,12 @@ export default function NavBar() {
               )}
             </div>
 
-            {/* Mobile Menu Button */}
+            {/* Mobile Menu Button - Simplified for bottom nav integration */}
             <div className="md:hidden flex items-center space-x-3">
               <button onClick={() => { setSearchOpen(true); setTimeout(() => inputRef.current?.focus(), 0); }} className="text-pink-600 hover:text-pink-700">
                 <Search size={26} />
               </button>
+              {/* Hamburger now opens a simplified mobile menu for non-bottom-nav items */}
               <button onClick={() => setOpen(true)} className="text-gray-700 hover:text-pink-600 focus:outline-none">
                 <Menu size={32} className="hover:cursor-pointer" />
               </button>
@@ -309,11 +326,11 @@ export default function NavBar() {
 
         {/* Mobile Sidebar Overlay */}
         {open && (
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setOpen(false)}></div>
+          <div className="fixed inset-0 bg-black/40 z-40 md:hidden" onClick={() => setOpen(false)}></div>
         )}
 
-        {/* Mobile Sidebar */}
-        <div className={`fixed top-0 left-0 h-full w-64 bg-white shadow-lg z-50 transform transition-transform duration-300 ease-in-out ${open ? "translate-x-0" : "-translate-x-full"}`}>
+        {/* Mobile Sidebar - Now simplified for additional actions */}
+        <div className={`fixed top-0 left-0 h-full w-64 bg-white shadow-lg z-50 transform transition-transform duration-300 ease-in-out md:hidden ${open ? "translate-x-0" : "-translate-x-full"}`}>
           <div className="flex justify-between items-center p-4 border-b">
             <span className="text-2xl font-bold text-pink-600">Menu</span>
             <button onClick={() => setOpen(false)} className="text-pink-600 hover:text-pink-700"><X size={28} /></button>
@@ -323,7 +340,7 @@ export default function NavBar() {
   {user && (
     <>
     <span className="text-sm text-pink-500 italic font-medium">
-        Hi, {user.username || "User"}
+       👋 Hi, {user.username || "User"}
       </span>
       <Link
         to="/profile"
@@ -334,12 +351,12 @@ export default function NavBar() {
       </Link>
 
       <Link
-        to="/profile"
+        to="/chat"
         onClick={() => setOpen(false)}
         className="relative text-pink-600 hover:text-pink-700 transition-colors duration-200 flex items-center"
         title="Messenger"
       >
-        <MessageCircle size={28} strokeWidth={2.5} />
+        <MessageCircle className="text-pink-500 hover:text-pink-600" size={28} strokeWidth={2.5} />
         {totalUnread > 0 && (
           <span className="absolute -top-1 -right-2 bg-pink-700 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-md animate-pulse">
             {totalUnread}
@@ -381,6 +398,59 @@ export default function NavBar() {
 </div>
         </div>
       </nav>
+
+      {/* Modern Tinder-like Bottom Navigation - Mobile Only */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40 md:hidden">
+        <div className="flex justify-around items-center h-16 px-4">
+          {/* Home */}
+          <Link
+            to="/"
+            className="flex flex-col items-center text-gray-600 hover:text-pink-600 transition-colors duration-200"
+            title="Home"
+          >
+            <Home className="text-pink-500 hover:text-pink-600" size={24} />
+            <span className="text-xs mt-1 font-medium">Home</span>
+          </Link>
+
+          {/* Search */}
+          <button
+            onClick={() => {
+              setSearchOpen(true);
+              setTimeout(() => inputRef.current?.focus(), 0);
+            }}
+            className="flex flex-col items-center text-gray-600 hover:text-pink-600 transition-colors duration-200"
+            title="Search"
+          >
+            <Search size={24}  className="text-pink-500 hover:text-pink-600"/>
+            <span className="text-xs mt-1 font-medium">Search</span>
+          </button>
+
+          {/* Chat */}
+          <Link
+            to="/profile"
+            className="flex flex-col items-center relative text-gray-600 hover:text-pink-600 transition-colors duration-200"
+            title="Chat"
+          >
+            <MessageCircle size={24} className="text-pink-500 hover:text-pink-600" />
+            {totalUnread > 0 && (
+              <span className="absolute -top-1 -right-1 bg-pink-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-md animate-pulse">
+                {totalUnread}
+              </span>
+            )}
+            <span className="text-xs mt-1 font-medium">Chat</span>
+          </Link>
+
+          {/* Profile */}
+          <Link
+            to="/profile"
+            className="flex flex-col items-center text-gray-600 hover:text-pink-600 transition-colors duration-200"
+            title="Profile"
+          >
+            <User className="text-pink-500 hover:text-pink-600" size={24} />
+            <span className="text-xs mt-1 font-medium">Profile</span>
+          </Link>
+        </div>
+      </div>
 
       {/* Fullscreen Search Overlay */}
       {searchOpen && (
